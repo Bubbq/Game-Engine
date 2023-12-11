@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <raylib.h>
 #include <math.h>
+#include <raymath.h>
 #define MAP_SIZE 64
 
+struct Ray3D ray;
+struct Player player;
 // the map of the entire game
 // 1's represent walls and 0 open space
 int mapX = 8;
@@ -63,21 +66,42 @@ struct Ray3D{
     float x, y;
     // the offset x & y coords, the next horizontal line, denoted as (rx + ro, ry + yo)
     float xo, yo;
-    // how far the player will see
-    float depth;
 };
 
-// // drawing the rays in the engine
-void drawRays3D(struct Player player, struct Ray3D ray){
+// finds the distance of the wall the ray collides into and the players current position
+float rayDistance(float px, float py, float rx, float ry){
+    // use the distance formula
+    return sqrt((rx - px) * (rx - px) + (ry - py) * (ry - py));
+}
+
+void drawRay(Vector2 ray1, Vector2 ray2){
+
+    float rx, ry;
+    if(Vector2Distance(ray1, (Vector2){player.x, player.y}) > Vector2Distance(ray2, (Vector2){player.x, player.y})){
+        rx = ray2.x;
+        ry = ray2.y;
+    }
+    else {
+        rx = ray1.x;
+        ry = ray1.y;
+    }
+
+    DrawLine(player.x, player.y, rx, ry, ORANGE);
+}
+
+
+Vector2 drawRayH(struct Player player, struct Ray3D ray){
     // first, the rays angle  must b =2 the players angle
     ray.angle = player.angle;
     float mx, my, mp;
+    // float hDistance, hx, hy;
     // next, we need to find the x and y of the closest horizontal gridline the ray will hit
 
     // making one line for now
-    for(int i = 0; i < 1; i++){
+    
         // setting depth 2 0
-        ray.depth = 0;
+        //hdepth = 0;
+        int hdepth = 0;
         // need to find the inverse tangent to find the x compoennt of rx
         float aTan = -1/tan(ray.angle * DEG2RAD);
         // now, we need to constantly update rx and ry
@@ -112,35 +136,131 @@ void drawRays3D(struct Player player, struct Ray3D ray){
         if(ray.angle == 0 || ray.angle == 180){
             ray.x = player.x;
             ray.y = player.y;
-            ray.depth = 8;
+            hdepth = 8;
         }
 
         // do this until we reach the end of the map or hit a wall
-        while(ray.depth < mapX || ray.depth < mapY){
+        while(hdepth < mapX || hdepth < mapY){
             //  to find the nearest map, divide down by 64 to get 8 * 8, and see if that array == 1
             mx = (int)ray.x>>(int)log2(MAP_SIZE);
             my = (int)ray.y>>(int)log2(MAP_SIZE);
             // find the maps position in the array
             mp = my * mapX + mx;
             // if you hit a wall
-            if(mp < mapX * mapY && map[(int)mp] == 1){
-                ray.depth = 8;
+            if(mp > 0 && mp < mapX * mapY && map[(int)mp] == 1){
+                printf("Wall hit at %f, %f\n", ray.x, ray.y);
+                hdepth = 8;
+                // hDistance = rayDistance(player.x, player.y, ray.x, ray.y);
+                // update the hDist coords
+                // hx = ray.x;
+                // hy = ray.y;
             }
             // if we dont hit a wall, check the next horz line using the offsets
             else{
                 ray.x += ray.xo;
                 ray.y += ray.yo;
                 // increase the rays depth
-                ray.depth++;
+                hdepth++;
             }
-        }
+        
 
         // draw the lines
-        DrawLine(player.x, player.y, ray.x, ray.y, GREEN);
+        // DrawLine(player.x, player.y, ray.x, ray.y, GREEN);
+        printf("depth: %d\n", hdepth);
+        // DrawLineEx((Vector2){player.x, player.y}, (Vector2){ray.x, ray.y}, 3, GREEN);
+        
+        }
+
+        return ((Vector2){ray.x, ray.y});
+        }
+
+
+
+
+// // drawing the rays in the engine
+Vector2 drawRayV(struct Player player, struct Ray3D ray){
+    
+        
+        // // Next, we need to find the coords of the nearest vertical gridline
+        ray.angle = player.angle;
+        float mx, my, mp;
+        //     // since we need to calculate the O, we only need tan, not aTan
+        //     // make nedagtive bc unit circle of raylib is upside down
+            float nTan = -tan(ray.angle * DEG2RAD);
+        //     // float vDistance, vx, vy;
+        //     // reset the depth back to 0
+            int vdepth = 0;
+
+        //     // since were worried about verical, there are 2 different states, looking left or right
+            
+        //     // looking left
+            if(ray.angle < 270 && ray.angle > 90){
+                // the rx is the nearest number divisible by the map size
+                ray.x = (((int)player.x>>(int)log2(MAP_SIZE)) << (int)log2(MAP_SIZE)) - 0.0001;
+                // solve for the O in the right triangle, the + player.y is so we start at the player's coord
+                ray.y = (player.x - ray.x) * nTan + player.y;   
+                // the x offset is just the next vert gridline
+                ray.xo = -MAP_SIZE;
+                ray.yo = -ray.xo * nTan;     
+            }
+
+            // looking right
+            if(ray.angle < 90 || ray.angle > 270){
+                // the rx is the nearest number divisible by the map size
+                ray.x = (((int)player.x>>(int)log2(MAP_SIZE)) << (int)log2(MAP_SIZE)) + MAP_SIZE;
+                // solve for the O in the right triangle, the + player.y is so we start at the player's coord
+                ray.y = (player.x - ray.x) * nTan + player.y;   
+                // the x offset is just the next vert gridline
+                ray.xo = MAP_SIZE;
+                ray.yo = -ray.xo * nTan;  
+            }
+
+            //  // looking striaght left or right well never hit a horizontal line
+            if(ray.angle == 270 || ray.angle == 90){
+                ray.x = player.x;
+                ray.y = player.y;
+                vdepth = 8;
+            }
+
+
+        //     // casting the ray
+            while(vdepth < mapX || vdepth < mapY){
+                // find the mapX and Yrepresentation of this vertical gridline
+                mx = (int)ray.x>>(int)log2(MAP_SIZE);
+                my = (int)ray.y>>(int)log2(MAP_SIZE);
+                // find the maps position in the array
+                mp = my * mapX + mx;
+                // if you hit a wall
+                if(mp > 0 && mp < mapX * mapY && map[(int)mp] == 1){
+                    vdepth = 8;
+                    // vDistance = rayDistance(player.x, player.y, ray.x, ray.y);
+                    // vx = ray.x;
+                    // vy = ray.y;
+                }
+                // if we dont hit a wall, check the next vert line using the offsets
+                else{
+                    ray.x += ray.xo;
+                    ray.y += ray.yo;
+                    // increase the rays depth
+                    vdepth++;
+                }
+            }
+            // if(hDistance > vDistance){
+            //     ray.x = vx;
+            //     ray.y = vy;
+            // }
+            // else{
+            //     ray.x = hx;
+            //     ray.y = hy;
+            // }
+            // then draw the vertical gridline
+            // DrawLine(player.x, player.y, ray.x, ray.y, RED);
+            return (Vector2){ray.x, ray.y};
     }
 
 
-}
+
+
 
 // to render a player, will be based on the players x and y coordinate
 void drawPlayer(struct Player player){
@@ -150,8 +270,6 @@ void drawPlayer(struct Player player){
     DrawLine(player.x, player.y, player.x + player.dx * 30, player.y + player.dy * 30, BLUE);
 }
 
-struct Ray3D ray;
-struct Player player;
 
 int main() {
     // capping framerate to monitors referesh rate
@@ -163,13 +281,14 @@ int main() {
     player.x = GetScreenWidth() / 2.0;
     player.y = GetScreenHeight() / 2.0;
     player.radius = 15;
-    player.angle = 90.00;
+    player.angle = 80.00;
     player.turnSpeed = 5.00;
     player.speed = 200.00;
 
     // the game loop, everything that runs is within this loop
     while(!WindowShouldClose()){
         // start of the rendering phase
+        printf("%f\n", player.angle);
         BeginDrawing();
         // show fps for benchmark testing
         DrawFPS(100, 100);
@@ -180,8 +299,7 @@ int main() {
         // draw the player
         drawPlayer(player);
         // draw the ray
-        drawRays3D(player, ray);
-
+        drawRay(drawRayH(player, ray), drawRayV(player, ray));
         // handling player movement, moving its pixel position based off of the speed
         if(IsKeyDown(KEY_W)){
             // we have to move by the componets of x and y

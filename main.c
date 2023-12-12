@@ -2,30 +2,31 @@
 #include <raylib.h>
 #include <math.h>
 #include <raymath.h>
+
 #define MAP_SIZE 64
 
-struct Ray3D ray;
-struct Player player;
-
 // object representing a single player
-struct Player{
+typedef struct {
    // the positioning of the player on the screen
    float x,y;
    float speed;
    // the angle, x, and y components of the players movement
    float angle, turnSpeed, dx, dy;
    int radius;
-};
+}Player;
 
 // representing a single ray in the engine
-struct Ray3D{
+typedef struct{
    // same as player angle
    float angle;
    // the cartesian coordinates for the nearest horizontal gridline you will hit with the ray
    float x, y;
    // the offset x & y coords, the next horizontal line, denoted as (rx + ro, ry + yo)
    float xo, yo;
-};
+}Ray3D;
+
+Ray3D ray;
+Player player;
 
 // map is 8x8
 int mapX = 8;
@@ -91,11 +92,7 @@ void drawRay(Vector2 ray1, Vector2 ray2){
 }
 
 // finding the coords of the nearest horizontal gridline line of the wal
-Vector2 drawRayH(struct Player player, struct Ray3D ray){
-
-
-   // first, the rays angle  must b =2 the players angle
-   ray.angle = player.angle;
+Vector2 drawRayH(Player player, Ray3D ray){
    // the x and y of the map array, and the index of those coords
    float mx, my, mp;
     // the farthest a player can see (will eventually be 8)
@@ -146,7 +143,7 @@ Vector2 drawRayH(struct Player player, struct Ray3D ray){
 
        // if you hit a wall
        if(mp > 0 && mp < mapX * mapY && map[(int)mp] == 1){
-           printf("Wall hit at %f, %f\n", ray.x, ray.y);
+           // printf("Wall hit at %f, %f\n", ray.x, ray.y);
            hdepth = 8;
        }
        // if we dont hit a wall, check the next horz line using the offsets
@@ -156,16 +153,13 @@ Vector2 drawRayH(struct Player player, struct Ray3D ray){
            // increase the rays depth
            hdepth++;
        }
-      
-   }
-      
+   }  
    // return the collided position of the ray looking for the nearest horizontal
    return ((Vector2){ray.x, ray.y});
 }
 
 // finding the coords of the nearest vertical gridline thats a wall
-Vector2 drawRayV(struct Player player, struct Ray3D ray){
-       ray.angle = player.angle;
+Vector2 drawRayV(Player player, Ray3D ray){
        float mx, my, mp;
        // since we need to calculate the O of the triangle, we only need tan
        // make negative bc unit circle of raylib is upside down
@@ -227,7 +221,7 @@ Vector2 drawRayV(struct Player player, struct Ray3D ray){
 
 // to render a player, will be based on the players x and y coordinate
 
-void drawPlayer(struct Player player){
+void drawPlayer(Player player){
    // draw circle based on player coords
    DrawCircle(player.x, player.y, player.radius, BLUE);
 }
@@ -248,79 +242,90 @@ int main() {
 
    // the game loop, everything that runs is within this loop
    while(!WindowShouldClose()){
-       // start of the rendering phase
-       BeginDrawing();
-       // show fps for benchmark testing
-       DrawFPS(100, 100);
-       // make background black
-       ClearBackground(GRAY);
-       // draw the map
-       drawMap();
-       // draw the player
-       drawPlayer(player);
-       // draw the ray
-       drawRay(drawRayH(player, ray), drawRayV(player, ray));
-       // handling player movement, moving its pixel position based off of the speed
-       if(IsKeyDown(KEY_W)){
-           // we have to move by the componets of x and y
-           player.x += player.dx * GetFrameTime() * player.speed;
-           player.y += player.dy * GetFrameTime() * player.speed;
+        printf("%f\n", ray.angle);
+        // start of the rendering phase
+        BeginDrawing();
+        // show fps for benchmark testing
+        DrawFPS(100, 100);
+        // make background black
+        ClearBackground(GRAY);
+        // draw the map
+        drawMap();
+        // draw the player
+        drawPlayer(player);
+        // draw the ray
 
-           // checking the collision for every wall
-           for(int i = 0; i < MAP_SIZE; i++){
-               if (CheckCollisionCircleRec((Vector2){player.x, player.y}, player.radius, walls[i])){
-                   // moves the player in the oppositte direction as the line shown on it
-                   player.x -= player.dx * GetFrameTime() * player.speed;
-                   player.y -= player.dy * GetFrameTime() * player.speed;
-               }
-           }
-          
-       }
-  
-       if(IsKeyDown(KEY_S)){
-           // move backwards based on the x and y components of the players angle
-           player.y -= player.dy * player.speed * GetFrameTime();
-           player.x -= player.dx * player.speed * GetFrameTime(); 
+        // update the player angle so that we can draw multiple rays
+        ray.angle = player.angle - 30;
+        if (ray.angle < 0) ray.angle+=360;
+        if (ray.angle > 360) ray.angle-=360;
+        for (int i = 0; i < 60; i++) {
+            drawRay(drawRayH(player, ray), drawRayV(player, ray));
+            ray.angle++;
+            if (ray.angle < 0) ray.angle+=360;
+            if (ray.angle > 360) ray.angle-=360;
+        }
+        // handling player movement, moving its pixel position based off of the speed
+        if(IsKeyDown(KEY_W)){
+            // we have to move by the componets of x and y
+            player.x += player.dx * GetFrameTime() * player.speed;
+            player.y += player.dy * GetFrameTime() * player.speed;
 
-           // checking the collisions of the walls
-           for(int i = 0; i < MAP_SIZE; i++){
-               if(CheckCollisionCircleRec((Vector2){player.x, player.y}, player.radius, walls[i])){
-                   // move player
-                   player.x += player.dx * GetFrameTime() * player.speed;
-                   player.y += player.dy * GetFrameTime() * player.speed;
-               }
-           }
-       }
+            // checking the collision for every wall
+            for(int i = 0; i < MAP_SIZE; i++){
+                if (CheckCollisionCircleRec((Vector2){player.x, player.y}, player.radius, walls[i])){
+                    // moves the player in the oppositte direction as the line shown on it
+                    player.x -= player.dx * GetFrameTime() * player.speed;
+                    player.y -= player.dy * GetFrameTime() * player.speed;
+                }
+            }
+            
+        }
+    
+        if(IsKeyDown(KEY_S)){
+            // move backwards based on the x and y components of the players angle
+            player.y -= player.dy * player.speed * GetFrameTime();
+            player.x -= player.dx * player.speed * GetFrameTime(); 
 
-       // turning keys, update the x and y component as the player is turning (x is cos and y is sin)
-       if(IsKeyDown(KEY_D)){
-           // as you press, turn right, so decrese the angle
-           player.angle += player.turnSpeed;
-           // update the x and y coordinates
-           player.dx = cos(player.angle * DEG2RAD);
-           player.dy = sin(player.angle * DEG2RAD);
+            // checking the collisions of the walls
+            for(int i = 0; i < MAP_SIZE; i++){
+                if(CheckCollisionCircleRec((Vector2){player.x, player.y}, player.radius, walls[i])){
+                    // move player
+                    player.x += player.dx * GetFrameTime() * player.speed;
+                    player.y += player.dy * GetFrameTime() * player.speed;
+                }
+            }
+        }
 
-           // check if angle is too high, then reset it back to 0
-           if(player.angle == 360)
-               player.angle -= 360;
-       }
+        // turning keys, update the x and y component as the player is turning (x is cos and y is sin)
+        if(IsKeyDown(KEY_D)){
+            // as you press, turn right, so decrese the angle
+            player.angle += player.turnSpeed;
+            // update the x and y coordinates
+            player.dx = cos(player.angle * DEG2RAD);
+            player.dy = sin(player.angle * DEG2RAD);
 
-       if(IsKeyDown(KEY_A)){
-           // player.x -= player.speed * GetFrameTime();
-           // when you press, turning left, so increase the angle (bc raylib unit circle is upside down)
-           player.angle -= player.turnSpeed;
-           // update the x and y coordinates
-           player.dx = cos(player.angle * DEG2RAD);
-           player.dy = sin(player.angle * DEG2RAD);
-         
-           // checking if angle is too high, only going from 0 - 2pi
-           if(player.angle < 0)
-               player.angle += 360;
-       }
-       // ending the rendering phase
-       EndDrawing();
-   }
-   // to prevent leak
-   CloseWindow();
-   return 0;
+            // check if angle is too high, then reset it back to 0
+            if(player.angle == 360)
+                player.angle -= 360;
+        }
+
+        if(IsKeyDown(KEY_A)){
+            // player.x -= player.speed * GetFrameTime();
+            // when you press, turning left, so increase the angle (bc raylib unit circle is upside down)
+            player.angle -= player.turnSpeed;
+            // update the x and y coordinates
+            player.dx = cos(player.angle * DEG2RAD);
+            player.dy = sin(player.angle * DEG2RAD);
+            
+            // checking if angle is too high, only going from 0 - 2pi
+            if(player.angle < 0)
+                player.angle += 360;
+        }
+        // ending the rendering phase
+        EndDrawing();
+    }
+    // to prevent leak
+    CloseWindow();
+    return 0;
 }

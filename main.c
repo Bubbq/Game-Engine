@@ -226,7 +226,7 @@ void drawRay(){
         DrawLineEx((Vector2){px, py}, (Vector2){px + (pdx * 30), py + (pdy * 30)}, 3, GREEN);
 
         // the length of each line drawn will be the block area * screen height / distance
-        float lineH = (BOX_SIZE * GetScreenHeight()) / fd; if(lineH > GetScreenHeight() * .75 || lineH == 0) {lineH = GetScreenHeight() * .75;} 
+        float lineH = (BOX_SIZE * GetScreenHeight()) / fd; if(lineH > GetScreenHeight() * .60 || lineH == 0) {lineH = GetScreenHeight() * .60;} 
         // where every line should start from to prevent warping, grows upward by half the line hieght by subtracting as more down = increase in y
         float lineO = (GetScreenHeight() / 2.0) - (lineH / 2.0);
         // draw each line every 8px and 8px wide

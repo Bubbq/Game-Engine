@@ -79,9 +79,10 @@ void drawRay(){
         ra += 360;
 
     // in order to draw the ray, we need to find the coord of the nearest horzontal and vertical gridline, then continue to offset until we find a wall
-    for(int r = 0; r < 61; r++){
+    for(int r = 0; r < 120; r++){
         // first, find the hx and hy
         hdepth = 0;
+        hdist = FLT_MAX;
         // in this context, we have 0 and theta, but need A of the triangle, so use inverse tan
         float aTan = -1/tan(ra * DEG2RAD);
 
@@ -108,15 +109,15 @@ void drawRay(){
         }
 
         // looking straight left or right will never hit a horizontal line 
-        if(ra == 0 || ra == 180 || ra == 360){
-            // make ray nonexistent
-            rx = px;
-            ry = py;
-            // make depth end
-            hdepth = 8;
-            // make hdist large as we're drawing the smallest ray and dont want this to be shown
-            hdist = FLT_MAX;
-        }
+        // if(ra == 0 || ra == 180){
+        //     // make ray nonexistent
+        //     rx = px;
+        //     ry = py;
+        //     // make depth end
+        //     hdepth = 8;
+        //     // make hdist large as we're drawing the smallest ray and dont want this to be shown
+        //     hdist = FLT_MAX;
+        // }
 
         // now, keep moving to the next horizontal gridlines until we reach a wall
         while(hdepth < mapX || hdepth < mapY){
@@ -146,6 +147,7 @@ void drawRay(){
 
         // now, we need to find the vertical distance
         vdepth = 0;
+        vdist = FLT_MAX;
         // since we need to calculate the O of the triangle, we only need tan
         // make negative bc unit circle of raylib is upside down
         float nTan = -tan(ra * DEG2RAD);
@@ -171,15 +173,15 @@ void drawRay(){
         }
 
         // looking striaght up or down will never hit a vertical line
-        if(ra == 270 || ra == 90){
-            // make ray invisible
-            rx = px ;
-            ry = py;
-            // show maxdepth
-            vdepth = 8;    
-            // make vdist large so we dont use it
-            vdist = FLT_MAX;
-        }
+        // if(ra == 270 || ra == 90){
+        //     // make ray invisible
+        //     rx = px ;
+        //     ry = py;
+        //     // show maxdepth
+        //     vdepth = 8;    
+        //     // make vdist large so we dont use it
+        //     vdist = FLT_MAX;
+        // }
 
         // just like before, keep updating rx and y until we reack a vert gridline thats a wall
         while(vdepth < mapX || vdepth < mapY){
@@ -215,8 +217,8 @@ void drawRay(){
         DrawLine(px, py, rx, ry, ORANGE);
 
         printf("angle: %f\n", ra);
-        // inc angle to make ray for every angle 30 deg to the right and left of the player
-        ra++;
+        // // inc angle to make ray for every angle 30 deg to the right and left of the player
+        ra += 0.5;
         // adj angle from edge cases
         if(ra > 360)
             ra -= 360;
@@ -225,39 +227,63 @@ void drawRay(){
     }
 }
 
+// to draw player based on updating position
+void drawPlayer(){
+   // draw circle based on player coords
+   DrawCircle(px, py, pr, BLUE);
+   // draw line to represent where the player is facing
+   // DrawLineEx((Vector2){px, py}, (Vector2){px + (pdx * 50), py + (pdy * 50)}, 3, GREEN);
+}
+
 // to update player position and angle based on WASD keys
 void move(){
     // handling player movement, moving its pixel position based off of the speed
 
     // W and S keys are for forward and backward movement
     if(IsKeyDown(KEY_W)){
-        // we have to move by the componets of x and y, GetFrameTime makes all screens show the same speed, regadless of refresh rate
+        // first, update the positioning of x
         px += pdx * GetFrameTime() * ps;
-        py += pdy * GetFrameTime() * ps;
-
-        // checking the collision for every possible wall
+        // if it collides move back by the x compent of the players direction
         for(int i = 0; i < MAP_SIZE; i++){
-            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i])){
-                // moves the player down in opposite directions as were running into the wall
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+                // keep the player at the bounds of the wall
                 px -= pdx * GetFrameTime() * ps;
+            
+        }   
+
+        // then, update y upon movement
+        py += pdy * GetFrameTime() * ps;
+        // if collision, keep y at the same position
+        for(int i = 0; i < MAP_SIZE; i++){
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
                 py -= pdy * GetFrameTime() * ps;
-            }
         }        
+
+        // doing this allows the components of movement to be independent of one another
+        // so if you press W and D @ the same time, itll correct x, but the D will make the player "slide" along the top of the wall
     }
         
     if(IsKeyDown(KEY_S)){
-        // move backwards based on the x and y components of the players angle
-        py -= pdy * ps * GetFrameTime();
-        px -= pdx * ps * GetFrameTime(); 
-
-        // checking the collisions of the walls
+        // first, update the positioning of x
+        px -= pdx * GetFrameTime() * ps;
+        // if it collides move back by the x compent of the players direction
         for(int i = 0; i < MAP_SIZE; i++){
-            if(CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i])){
-                // move player up as were backing into the wall
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+                // keep the player at the bounds of the wall
                 px += pdx * GetFrameTime() * ps;
+            
+        }   
+
+        // then, update y upon movement
+        py -= pdy * GetFrameTime() * ps;
+        // if collision, keep y at the same position
+        for(int i = 0; i < MAP_SIZE; i++){
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
                 py += pdy * GetFrameTime() * ps;
-            }
-        }
+        }        
+
+        // doing this allows the components of movement to be independent of one another
+        // so if you press S and D @ the same time, itll correct y, but the D will make the player "slide" along the right of the wall
     }
 
     // A and D are the turning keys, update the x and y component (x is cos and y is sin)
@@ -286,13 +312,6 @@ void move(){
     }
 }
 
-void drawPlayer(){
-   // draw circle based on player coords
-   DrawCircle(px, py, pr, BLUE);
-   // draw line to represent where the player is facing
-   DrawLineEx((Vector2){px, py}, (Vector2){px + (pdx * 50), py + (pdy * 50)}, 3, GREEN);
-}
-
 int main() {
 
     // capping framerate to monitors referesh rate
@@ -305,7 +324,7 @@ int main() {
     py = GetScreenHeight() / 2.0;
 
     // quantitive properties
-    pr = 15;
+    pr = 5;
     pa = 90.00;
     pt = 3.00;
     ps = 200.00;

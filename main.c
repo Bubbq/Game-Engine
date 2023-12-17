@@ -226,11 +226,11 @@ void drawRay(){
         DrawLineEx((Vector2){px, py}, (Vector2){px + (pdx * 30), py + (pdy * 30)}, 3, GREEN);
 
         // the length of each line drawn will be the block area * screen height / distance
-        float lineH = (BOX_SIZE * GetScreenHeight()) / fd; if(lineH > GetScreenHeight() * .60 || lineH == 0) {lineH = GetScreenHeight() * .60;} 
+        float lineH = (BOX_SIZE * GetScreenHeight() * .6) / fd; if(lineH > GetScreenHeight() * .60 || lineH == 0) {lineH = GetScreenHeight() * .60;} 
         // where every line should start from to prevent warping, grows upward by half the line hieght by subtracting as more down = increase in y
         float lineO = (GetScreenHeight() / 2.0) - (lineH / 2.0);
         // draw each line every 8px and 8px wide
-        DrawLineEx((Vector2){ray * 8 + GetScreenWidth() / 1.95, lineO}, (Vector2){ray * 8 + GetScreenWidth() / 1.95, lineO + lineH}, 8, c);
+        DrawLineEx((Vector2){ray * 8 + GetScreenWidth() / 1.95, lineO}, (Vector2){ray * 8 + GetScreenWidth() / 1.95,  lineO + lineH}, 8, c);
         // doing this will make the walls larger the closer we are, and smaller the further we are
 
         // inc angle to make ray for every angle 30 deg to the right and left of the player
@@ -293,29 +293,67 @@ void move(){
         // so if you press S and D @ the same time, itll correct y, but the D will make the player "slide" along the right of the wall
     }
 
-    // A and D are the turning keys, update the x and y component (x is cos and y is sin)
-    if(IsKeyDown(KEY_D)){
-        // as you press, turn right, so inc the angle as unit circle in raylib is upside down
-        pa += pt;
-        // update the x and y coordinates
-        pdx = cos(pa * DEG2RAD);
-        pdy = sin(pa * DEG2RAD);
 
-        // check if angle is too high
-        if(pa > 360)
-            pa -= 360;
-    }
+    /********************************OLD STYLE MOVEMENT, TURING WITH "A" AND "D" KEYS*/
 
-    if(IsKeyDown(KEY_A)){
-        // when you press, turning left, so dec
-        pa -= pt;
-        // update the x and y coordinates
-        pdx = cos(pa * DEG2RAD);
-        pdy = sin(pa * DEG2RAD);
+    // // A and D are the turning keys, update the x and y component (x is cos and y is sin)
+    // if(IsKeyDown(KEY_D)){
+    //     // as you press, turn right, so inc the angle as unit circle in raylib is upside down
+    //     pa += pt;
+    //     // update the x and y coordinates
+    //     pdx = cos(pa * DEG2RAD);
+    //     pdy = sin(pa * DEG2RAD);
+
+    //     // check if angle is too high
+    //     if(pa > 360)
+    //         pa -= 360;
+    // }
+
+    // if(IsKeyDown(KEY_A)){
+    //     // when you press, turning left, so dec
+    //     pa -= pt;
+    //     // update the x and y coordinates
+    //     pdx = cos(pa * DEG2RAD);
+    //     pdy = sin(pa * DEG2RAD);
                 
-        // checking if angle is too low
-        if(pa < 0)
-            pa += 360;
+    //     // checking if angle is too low
+    //     if(pa < 0)
+    //         pa += 360;
+    // }
+    
+    
+    /********************************OLD STYLE MOVEMENT, TURING WITH "A" AND "D" KEYS*/
+
+        // first, find the coordinate of the press
+        Vector2 mp = GetMousePosition();
+
+        // only update angle in player window, not in any other parts of the screen
+        if(mp.x < GetScreenWidth() / 2.0){
+            // the difference in xy comp of mouse position relative to the player
+            float dx, dy;
+        
+            // the A of the right triangle
+            dx = mp.x - px;
+            // the O of the triangle
+            dy = mp.y - py;
+            // adj the angle based on diffeence, see inverse tan range
+            int inc = 0;
+
+            // handles top left quad
+            if(dx < 0 && dy < 0)
+                inc = 180;
+            // handles top right quad
+            if(dx < 0 && dy > 0)
+                inc = -180;
+
+            // the angle of difference
+            pa = atan(dy / dx) * RAD2DEG + inc; 
+            
+            // angle correction
+            if(pa < 0) {pa += 360;} if(pa > 360) {pa -= 360;}
+
+            pdx = cos(pa * DEG2RAD);
+            pdy = sin(pa * DEG2RAD);
     }
 }
 
@@ -361,3 +399,4 @@ int main() {
     CloseWindow();
     return 0;
 }
+

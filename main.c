@@ -294,36 +294,53 @@ void move(){
         // so if you press S and D @ the same time, itll correct y, but the D will make the player "slide" along the right of the wall
     }
 
+    // A and D are the strafing keys, need to make 2 lines perpendicular where the player is currently facing
+    if(IsKeyDown(KEY_D)){
+        // whatever the players angle is, you need 2 add 90 to get a line purpendicular to wherever the player is facing, strafing right
+        float srA = pa + 90; if(srA < 0) {srA += 360;} if(srA > 360) {srA -= 360;}
+        float srdx = cos(srA * DEG2RAD);
+        float srdy = sin(srA * DEG2RAD);
 
-     /********************************OLD STYLE MOVEMENT, TURING WITH "A" AND "D" KEYS*/
+        px += srdx * GetFrameTime() * ps;
+        // if it collides move back by the x compent of the players direction
+        for(int i = 0; i < BOX_SIZE; i++){
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+                // keep the player at the bounds of the wall
+                px -= srdx * GetFrameTime() * ps;
+        }   
 
-    // // A and D are the turning keys, update the x and y component (x is cos and y is sin)
-    // if(IsKeyDown(KEY_D)){
-    //     // as you press, turn right, so inc the angle as unit circle in raylib is upside down
-    //     pa += pt;
-    //     // update the x and y coordinates
-    //     pdx = cos(pa * DEG2RAD);
-    //     pdy = sin(pa * DEG2RAD);
+        // then, update y upon movement
+        py += srdy * GetFrameTime() * ps;
+        // if collision, keep y at the same position
+        for(int i = 0; i < BOX_SIZE; i++){
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+                py -= srdy * GetFrameTime() * ps;
+        }        
+    }
 
-    //     // check if angle is too high
-    //     if(pa > 360)
-    //         pa -= 360;
-    // }
+    if(IsKeyDown(KEY_A)){
+        // whatever the players angle is, you need 2 subract 90 to get a line purpendicular to wherever the player is facing, strafing left
+        float slA = pa - 90; if(slA < 0) {slA += 360;} if(slA > 360) {slA -= 360;}
+        float sldx = cos(slA * DEG2RAD);
+        float sldy = sin(slA * DEG2RAD);
 
-    // if(IsKeyDown(KEY_A)){
-    //     // when you press, turning left, so dec
-    //     pa -= pt;
-    //     // update the x and y coordinates
-    //     pdx = cos(pa * DEG2RAD);
-    //     pdy = sin(pa * DEG2RAD);
-                
-    //     // checking if angle is too low
-    //     if(pa < 0)
-    //         pa += 360;
-    // }
-    
-    
-    /********************************OLD STYLE MOVEMENT, TURING WITH "A" AND "D" KEYS*/
+        px += sldx * GetFrameTime() * ps;
+        // if it collides move back by the x compent of the players direction
+        for(int i = 0; i < BOX_SIZE; i++){
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+                // keep the player at the bounds of the wall
+                px -= sldx * GetFrameTime() * ps;
+        }   
+
+        // then, update y upon movement
+        py += sldy * GetFrameTime() * ps;
+        // if collision, keep y at the same position
+        for(int i = 0; i < BOX_SIZE; i++){
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+                py -= sldy * GetFrameTime() * ps;
+        }        
+
+    }
 }
 
 int main() {
@@ -341,47 +358,37 @@ int main() {
     // quantitive properties
     pr = 5;
     pa = 90.00;
-    pt = 1.00;
+    pt = 3.00;
     ps = 200.00;
     pdy = sin(pa * DEG2RAD);
 
-
     // the game loop, everything that runs is within this loop
     while(!WindowShouldClose()){
-        // for player movement
 
         Vector2 currentMousePosition = GetMousePosition();
 
-        float diff = prevMousePosition.x - currentMousePosition.x;
-
-        // basing sensitivity on how fast the user moves his mouse
-        if(abs((int)diff) < 40)
-            pt = 1;
-        else if(abs((int)diff) > 40 && abs((int)diff) < 80)
-            pt = 3;
-        else
-            pt = 7;
-
-        printf("Difference: %f\n", diff);
-        printf("%f\n", pt);
-
         // Check if the mouse moved left or right
+
+        // moving right
         if (currentMousePosition.x > prevMousePosition.x) {
             pa += pt;
             pdx = cos(pa * DEG2RAD);
             pdy = sin(pa * DEG2RAD);
             if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
-            // printf("Mouse moved right\n");
-        } else if (currentMousePosition.x < prevMousePosition.x) {
+
+        } 
+        
+        // moving left
+        if (currentMousePosition.x < prevMousePosition.x) {
             pa -= pt;
             pdx = cos(pa * DEG2RAD);
             pdy = sin(pa * DEG2RAD);
             if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
-            // printf("Mouse moved left\n");
         }
         
         // Update previous mouse position to continue checking the difference while game is running
         prevMousePosition = currentMousePosition; 
+        // handling player movement
         move();
         // start of the rendering phase
         BeginDrawing();

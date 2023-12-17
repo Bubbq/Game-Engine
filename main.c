@@ -3,6 +3,7 @@
 #include <math.h>
 #include <float.h>
 #include <raymath.h>
+#include <stdlib.h>
 
 #define BOX_SIZE 64
 
@@ -294,7 +295,7 @@ void move(){
     }
 
 
-    /********************************OLD STYLE MOVEMENT, TURING WITH "A" AND "D" KEYS*/
+     /********************************OLD STYLE MOVEMENT, TURING WITH "A" AND "D" KEYS*/
 
     // // A and D are the turning keys, update the x and y component (x is cos and y is sin)
     // if(IsKeyDown(KEY_D)){
@@ -323,38 +324,6 @@ void move(){
     
     
     /********************************OLD STYLE MOVEMENT, TURING WITH "A" AND "D" KEYS*/
-
-        // first, find the coordinate of the press
-        Vector2 mp = GetMousePosition();
-
-        // only update angle in player window, not in any other parts of the screen
-        if(mp.x < GetScreenWidth() / 2.0){
-            // the difference in xy comp of mouse position relative to the player
-            float dx, dy;
-        
-            // the A of the right triangle
-            dx = mp.x - px;
-            // the O of the triangle
-            dy = mp.y - py;
-            // adj the angle based on diffeence, see inverse tan range
-            int inc = 0;
-
-            // handles top left quad
-            if(dx < 0 && dy < 0)
-                inc = 180;
-            // handles top right quad
-            if(dx < 0 && dy > 0)
-                inc = -180;
-
-            // the angle of difference
-            pa = atan(dy / dx) * RAD2DEG + inc; 
-            
-            // angle correction
-            if(pa < 0) {pa += 360;} if(pa > 360) {pa -= 360;}
-
-            pdx = cos(pa * DEG2RAD);
-            pdy = sin(pa * DEG2RAD);
-    }
 }
 
 int main() {
@@ -363,21 +332,56 @@ int main() {
     SetWindowState(FLAG_VSYNC_HINT);
     // creating window
     InitWindow(1020, 512, "Raycast Engine");
-
+    DisableCursor();
     // player starts at the center of left window
     px = GetScreenWidth() / 4.0;
     py = GetScreenHeight() / 4.0;
+    Vector2 prevMousePosition = GetMousePosition();
 
     // quantitive properties
     pr = 5;
     pa = 90.00;
-    pt = 3.00;
+    pt = 1.00;
     ps = 200.00;
     pdy = sin(pa * DEG2RAD);
+
 
     // the game loop, everything that runs is within this loop
     while(!WindowShouldClose()){
         // for player movement
+
+        Vector2 currentMousePosition = GetMousePosition();
+
+        float diff = prevMousePosition.x - currentMousePosition.x;
+
+        // basing sensitivity on how fast the user moves his mouse
+        if(abs((int)diff) < 40)
+            pt = 1;
+        else if(abs((int)diff) > 40 && abs((int)diff) < 80)
+            pt = 3;
+        else
+            pt = 7;
+
+        printf("Difference: %f\n", diff);
+        printf("%f\n", pt);
+
+        // Check if the mouse moved left or right
+        if (currentMousePosition.x > prevMousePosition.x) {
+            pa += pt;
+            pdx = cos(pa * DEG2RAD);
+            pdy = sin(pa * DEG2RAD);
+            if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
+            // printf("Mouse moved right\n");
+        } else if (currentMousePosition.x < prevMousePosition.x) {
+            pa -= pt;
+            pdx = cos(pa * DEG2RAD);
+            pdy = sin(pa * DEG2RAD);
+            if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
+            // printf("Mouse moved left\n");
+        }
+        
+        // Update previous mouse position to continue checking the difference while game is running
+        prevMousePosition = currentMousePosition; 
         move();
         // start of the rendering phase
         BeginDrawing();
@@ -399,4 +403,3 @@ int main() {
     CloseWindow();
     return 0;
 }
-

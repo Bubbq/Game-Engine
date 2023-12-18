@@ -10,9 +10,9 @@
 // map is 8x8
 int mapX = 8;
 int mapY = 8;
-// the bounded walls in the array, denoted with a 1 in the int array
-Rectangle walls[BOX_SIZE];
-// 1's represent walls and 0 open space
+// the list of every rectangle in the map, either 1 for wall, or 0 for moveable space
+Rectangle boxes[BOX_SIZE];
+// 1's represent walls and 0 open boxes
 int map[] =
 {
 1,1,1,1,1,1,1,1,
@@ -39,18 +39,16 @@ void drawMap(){
   // need to iterate through row by row, treating it like a 2D array
   for(int i = 0; i < mapY; i++){
       for(int j = 0; j < mapX; j++){
-          // the i is the first element in every row of this array, and the j is each element in said row
-          Color color = (map[i * mapX + j] == 1) ? WHITE : DARKGRAY;
-          // draw the rectangle, draws from top left vertex
-          // each point is BOX_SIZE (64px) away from each other
-          DrawRectangle(j * BOX_SIZE - 1, i * BOX_SIZE - 1, BOX_SIZE - 1, BOX_SIZE - 1, color);
-          // putting all the walls in the map into an array so we can iterate through the for collision checking
-          if(map[i * mapX + j] == 1){
-              walls[i * mapX + j].x = j * BOX_SIZE;
-              walls[i * mapX + j].y = i * BOX_SIZE;
-              walls[i * mapX + j].width = BOX_SIZE;
-              walls[i * mapX + j].height = BOX_SIZE;
-          }
+        // the i is the first element in every row of this array, and the j is each element in said row
+        Color color = (map[i * mapX + j] == 1) ? WHITE : DARKGRAY;
+        // draw the rectangle, draws from top left vertex
+        // each point is BOX_SIZE (64px) away from each other
+        DrawRectangle(j * BOX_SIZE - 1, i * BOX_SIZE - 1, BOX_SIZE - 1, BOX_SIZE - 1, color);
+        // putting all the walls in the map into an array so we can iterate through the for collision checking
+        boxes[i * mapX + j].x = j * BOX_SIZE;
+        boxes[i * mapX + j].y = i * BOX_SIZE;
+        boxes[i * mapX + j].width = BOX_SIZE;
+        boxes[i * mapX + j].height = BOX_SIZE;
       }
   }
     /*
@@ -248,15 +246,34 @@ void drawPlayer(){
 }
 
 // to update player position and angle based on WASD keys
-void move(){
+void move(float mdx){
+    // Check if the mouse moved left or right
+
+    // moving right
+    if (mdx < 0) {
+        pa += pt;
+        pdx = cos(pa * DEG2RAD);
+        pdy = sin(pa * DEG2RAD);
+        if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
+
+    } 
+        
+    // moving left
+    if (mdx > 0) {
+        pa -= pt;
+        pdx = cos(pa * DEG2RAD);
+        pdy = sin(pa * DEG2RAD);
+        if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
+    }
+        
     // W and S keys are for forward and backward movement
     if(IsKeyDown(KEY_W)){
         // first, update the positioning of x
         px += pdx * GetFrameTime() * ps;
         // if it collides move back by the x compent of the players direction
         for(int i = 0; i < BOX_SIZE; i++){
-            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
-                // keep the player at the bounds of the wall
+            // check every rectangle, only "collide" when rectangle is a wall (map[i] ==1)
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1)
                 px -= pdx * GetFrameTime() * ps;
         }   
 
@@ -264,7 +281,7 @@ void move(){
         py += pdy * GetFrameTime() * ps;
         // if collision, keep y at the same position
         for(int i = 0; i < BOX_SIZE; i++){
-            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1)
                 py -= pdy * GetFrameTime() * ps;
         }        
 
@@ -277,8 +294,8 @@ void move(){
         px -= pdx * GetFrameTime() * ps;
         // if it collides move back by the x compent of the players direction
         for(int i = 0; i < BOX_SIZE; i++){
-            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
-                // keep the player at the bounds of the wall
+            // check every rectangle, only "collide" when rectangle is a wall (map[i] ==1)
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1)
                 px += pdx * GetFrameTime() * ps;
         }   
 
@@ -286,7 +303,7 @@ void move(){
         py -= pdy * GetFrameTime() * ps;
         // if collision, keep y at the same position
         for(int i = 0; i < BOX_SIZE; i++){
-            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1)
                 py += pdy * GetFrameTime() * ps;
         }        
 
@@ -304,7 +321,7 @@ void move(){
         px += srdx * GetFrameTime() * ps;
         // if it collides move back by the x compent of the players direction
         for(int i = 0; i < BOX_SIZE; i++){
-            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1)
                 // keep the player at the bounds of the wall
                 px -= srdx * GetFrameTime() * ps;
         }   
@@ -313,7 +330,7 @@ void move(){
         py += srdy * GetFrameTime() * ps;
         // if collision, keep y at the same position
         for(int i = 0; i < BOX_SIZE; i++){
-            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1)
                 py -= srdy * GetFrameTime() * ps;
         }        
     }
@@ -327,7 +344,7 @@ void move(){
         px += sldx * GetFrameTime() * ps;
         // if it collides move back by the x compent of the players direction
         for(int i = 0; i < BOX_SIZE; i++){
-            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1)
                 // keep the player at the bounds of the wall
                 px -= sldx * GetFrameTime() * ps;
         }   
@@ -336,62 +353,81 @@ void move(){
         py += sldy * GetFrameTime() * ps;
         // if collision, keep y at the same position
         for(int i = 0; i < BOX_SIZE; i++){
-            if (CheckCollisionCircleRec((Vector2){px, py}, pr, walls[i]))
+            if (CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1)
                 py -= sldy * GetFrameTime() * ps;
         }        
-
     }
 }
 
 int main() {
-
     // capping framerate to monitors referesh rate
     SetWindowState(FLAG_VSYNC_HINT);
     // creating window
     InitWindow(1020, 512, "Raycast Engine");
+
+    // starting in playmode, where you can move the player through the map
+    bool edit = false;
     DisableCursor();
+    Vector2 prevMousePosition = GetMousePosition();
+
     // player starts at the center of left window
     px = GetScreenWidth() / 4.0;
     py = GetScreenHeight() / 4.0;
-    Vector2 prevMousePosition = GetMousePosition();
 
     // quantitive properties
     pr = 5;
     pa = 90.00;
-    pt = 3.00;
-    ps = 200.00;
+    pt = 2.00;
+    ps = 100.00;
+    pdx = 0.00;
     pdy = sin(pa * DEG2RAD);
 
     // the game loop, everything that runs is within this loop
     while(!WindowShouldClose()){
-
-        Vector2 currentMousePosition = GetMousePosition();
-
-        // Check if the mouse moved left or right
-
-        // moving right
-        if (currentMousePosition.x > prevMousePosition.x) {
-            pa += pt;
-            pdx = cos(pa * DEG2RAD);
-            pdy = sin(pa * DEG2RAD);
-            if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
-
-        } 
-        
-        // moving left
-        if (currentMousePosition.x < prevMousePosition.x) {
-            pa -= pt;
-            pdx = cos(pa * DEG2RAD);
-            pdy = sin(pa * DEG2RAD);
-            if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
-        }
-        
-        // Update previous mouse position to continue checking the difference while game is running
-        prevMousePosition = currentMousePosition; 
-        // handling player movement
-        move();
         // start of the rendering phase
         BeginDrawing();
+
+        // toggle edit mode
+        if(IsKeyPressed(KEY_E)){
+            edit = true;
+            // user can see their cursor
+            EnableCursor();
+        }
+        
+        // toggle play mode
+        if(IsKeyPressed(KEY_Q)){
+            edit = false;
+            // cannot see cursor
+            DisableCursor();
+        }
+
+        // in edit mode, when user presses a box, if its a wall, its now empty boxes, and vice versa
+        if(edit){
+            if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+                printf("Mouse pressed");
+                // get position of click
+                Vector2 mc = GetMousePosition();
+                for(int i = 0; i < BOX_SIZE; i++){
+                    // Check collision against the rectangles representing the map
+                    if(CheckCollisionPointRec(mc, boxes[i])){
+                        // the switch between walls and empty boxes
+                        map[i] = (map[i] == 1) ? 0 : 1;
+                    }
+                }
+            }
+        }
+
+        // in play mode, user can move the player, walking around the map
+        else{   
+            Vector2 currentMousePosition = GetMousePosition();
+            // difference between the prev and current position's x componenet
+            float mdx = prevMousePosition.x - currentMousePosition.x;
+            // handling player movement
+            move(mdx);
+            // Update previous mouse position to continue checking the difference while game is running
+            prevMousePosition = currentMousePosition;
+        }
+        
         // benchmark testing
         DrawFPS(GetScreenWidth() * .90, GetScreenHeight() * .05);
         // make background black

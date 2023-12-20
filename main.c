@@ -5,9 +5,7 @@
 #include <raymath.h>
 #include <stdlib.h>
 
-
 #define BOX_SIZE 64
-
 
 // map is 8x8
 int mapX = 8;
@@ -72,14 +70,8 @@ void saveMap() {
    fclose(file);
 }
 
-
 // to render the map
 void drawMap(){
-
-
-   // check if there is a previous map, if not, use default
-   loadMap();
-
 
    // need to iterate through row by row, treating it like a 2D array
    for(int i = 0; i < mapY; i++){
@@ -110,7 +102,6 @@ void drawMap(){
 
     */
 }
-
 
 // drawing the rays stemming from the player, stopping at the nearest wall coord of the map
 void drawRay(){
@@ -306,18 +297,15 @@ void drawRay(){
    }
 }
 
-
 // to draw player based on updating position
 void drawPlayer(){
   // draw circle based on player coords
   DrawCircle(px, py, pr, BLUE);
 }
 
-
 // to update player position and angle based on WASD keys
 void move(float mdx){
    // Check if the mouse moved left or right
-
 
    // moving right
    if (mdx < 0) {
@@ -325,8 +313,6 @@ void move(float mdx){
        pdx = cos(pa * DEG2RAD);
        pdy = sin(pa * DEG2RAD);
        if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
-
-
    }
       
    // moving left
@@ -348,7 +334,6 @@ void move(float mdx){
                px -= pdx * GetFrameTime() * ps;
        }  
 
-
        // then, update y upon movement
        py += pdy * GetFrameTime() * ps;
        // if collision, keep y at the same position
@@ -356,7 +341,6 @@ void move(float mdx){
            if (CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1)
                py -= pdy * GetFrameTime() * ps;
        }       
-
 
        // doing this allows the components of movement to be independent of one another
        // so if you press W and D @ the same time, itll correct x, but the D will make the player "slide" along the top of the wall
@@ -372,7 +356,6 @@ void move(float mdx){
                px += pdx * GetFrameTime() * ps;
        }  
 
-
        // then, update y upon movement
        py -= pdy * GetFrameTime() * ps;
        // if collision, keep y at the same position
@@ -381,11 +364,9 @@ void move(float mdx){
                py += pdy * GetFrameTime() * ps;
        }       
 
-
        // doing this allows the components of movement to be independent of one another
        // so if you press S and D @ the same time, itll correct y, but the D will make the player "slide" along the right of the wall
    }
-
 
    // A and D are the strafing keys, need to make 2 lines perpendicular where the player is currently facing
    if(IsKeyDown(KEY_D)){
@@ -394,7 +375,6 @@ void move(float mdx){
        float srdx = cos(srA * DEG2RAD);
        float srdy = sin(srA * DEG2RAD);
 
-
        px += srdx * GetFrameTime() * ps;
        // if it collides move back by the x compent of the players direction
        for(int i = 0; i < BOX_SIZE; i++){
@@ -402,7 +382,6 @@ void move(float mdx){
                // keep the player at the bounds of the wall
                px -= srdx * GetFrameTime() * ps;
        }  
-
 
        // then, update y upon movement
        py += srdy * GetFrameTime() * ps;
@@ -413,13 +392,11 @@ void move(float mdx){
        }       
    }
 
-
    if(IsKeyDown(KEY_A)){
        // whatever the players angle is, you need 2 subract 90 to get a line purpendicular to wherever the player is facing, strafing left
        float slA = pa - 90; if(slA < 0) {slA += 360;} if(slA > 360) {slA -= 360;}
        float sldx = cos(slA * DEG2RAD);
        float sldy = sin(slA * DEG2RAD);
-
 
        px += sldx * GetFrameTime() * ps;
        // if it collides move back by the x compent of the players direction
@@ -428,7 +405,6 @@ void move(float mdx){
                // keep the player at the bounds of the wall
                px -= sldx * GetFrameTime() * ps;
        }  
-
 
        // then, update y upon movement
        py += sldy * GetFrameTime() * ps;
@@ -440,102 +416,100 @@ void move(float mdx){
    }
 }
 
-
 int main() {
-   // capping framerate to monitors referesh rate
-   SetWindowState(FLAG_VSYNC_HINT);
-   // creating window
-   InitWindow(1020, 512, "Raycast Engine");
+    // capping framerate to monitors referesh rate
+    SetWindowState(FLAG_VSYNC_HINT);
+    // creating window
+    InitWindow(1020, 512, "Raycast Engine");
+
+    // load prevois map, if there is one
+    loadMap();
+
+    // starting in playmode, where you can move the player through the map
+    bool edit = false;
+    DisableCursor();
+    Vector2 prevMousePosition = GetMousePosition();
+
+    // player starts at the center of left window
+    px = GetScreenWidth() / 4.0;
+    py = GetScreenHeight() / 4.0;
+
+    // quantitive properties
+    pr = 5;
+    pa = 90.00;
+    pt = 2.00;
+    ps = 100.00;
+    pdx = 0.00;
+    pdy = sin(pa * DEG2RAD);
+
+    // the game loop, everything that runs is within this loop
+    while(!WindowShouldClose()){
+        // start of the rendering phase
+        BeginDrawing();
 
 
-   // starting in playmode, where you can move the player through the map
-   bool edit = false;
-   DisableCursor();
-   Vector2 prevMousePosition = GetMousePosition();
+        // toggle edit mode
+        if(IsKeyPressed(KEY_E)){
+            edit = true;
+            // user can see their cursor
+            EnableCursor();
+        }
+        
+        // toggle play mode
+        if(IsKeyPressed(KEY_Q)){
+            edit = false;
+            // cannot see cursor
+            DisableCursor();
 
+            // save map after leaving edit mode
+            saveMap();
+            // load new changes
+            loadMap();
+        }
 
-   // player starts at the center of left window
-   px = GetScreenWidth() / 4.0;
-   py = GetScreenHeight() / 4.0;
+        // in edit mode, when user presses a box, if its a wall, its now empty boxes, and vice versa
+        if(edit){
+            if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+                printf("Mouse pressed");
+                // get position of click
+                Vector2 mc = GetMousePosition();
+                for(int i = 0; i < BOX_SIZE; i++){
+                    // Check collision against the rectangles representing the map
+                    if(CheckCollisionPointRec(mc, boxes[i])){
+                        // the switch between walls and empty boxes
+                        map[i] = (map[i] == 1) ? 0 : 1;
+                    }
+                }
+            }
+        }
 
+        // in play mode, user can move the player, walking around the map
+        else{  
+            Vector2 currentMousePosition = GetMousePosition();
+            // difference between the prev and current position's x componenet
+            float mdx = prevMousePosition.x - currentMousePosition.x;
+            // handling player movement
+            move(mdx);
+            // Update previous mouse position to continue checking the difference while game is running
+            prevMousePosition = currentMousePosition;
+        }
+        
+        // benchmark testing
+        DrawFPS(GetScreenWidth() * .90, GetScreenHeight() * .05);
+        // make background black
+        ClearBackground(BLACK);
+        // draw the map
+        drawMap();
+        // draw the player
+        drawPlayer();
+        // draw the ray
+        drawRay();
+        // ending the rendering phase
+        EndDrawing();
+    }
 
-   // quantitive properties
-   pr = 5;
-   pa = 90.00;
-   pt = 2.00;
-   ps = 100.00;
-   pdx = 0.00;
-   pdy = sin(pa * DEG2RAD);
-
-
-   // the game loop, everything that runs is within this loop
-   while(!WindowShouldClose()){
-       // start of the rendering phase
-       BeginDrawing();
-
-
-       // toggle edit mode
-       if(IsKeyPressed(KEY_E)){
-           edit = true;
-           // user can see their cursor
-           EnableCursor();
-       }
-      
-       // toggle play mode
-       if(IsKeyPressed(KEY_Q)){
-           edit = false;
-           // cannot see cursor
-           DisableCursor();
-
-           // save map after leaving edit mode
-           saveMap();
-       }
-
-
-       // in edit mode, when user presses a box, if its a wall, its now empty boxes, and vice versa
-       if(edit){
-           if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
-               printf("Mouse pressed");
-               // get position of click
-               Vector2 mc = GetMousePosition();
-               for(int i = 0; i < BOX_SIZE; i++){
-                   // Check collision against the rectangles representing the map
-                   if(CheckCollisionPointRec(mc, boxes[i])){
-                       // the switch between walls and empty boxes
-                       map[i] = (map[i] == 1) ? 0 : 1;
-                   }
-               }
-           }
-       }
-
-       // in play mode, user can move the player, walking around the map
-       else{  
-           Vector2 currentMousePosition = GetMousePosition();
-           // difference between the prev and current position's x componenet
-           float mdx = prevMousePosition.x - currentMousePosition.x;
-           // handling player movement
-           move(mdx);
-           // Update previous mouse position to continue checking the difference while game is running
-           prevMousePosition = currentMousePosition;
-       }
-      
-       // benchmark testing
-       DrawFPS(GetScreenWidth() * .90, GetScreenHeight() * .05);
-       // make background black
-       ClearBackground(BLACK);
-       // draw the map
-       drawMap();
-       // draw the player
-       drawPlayer();
-       // draw the ray
-       drawRay();
-       // ending the rendering phase
-       EndDrawing();
-   }
-
-
-   // to prevent leak
-   CloseWindow();
-   return 0;
+    // to prevent leak
+    CloseWindow();
+    return 0;
 }
 

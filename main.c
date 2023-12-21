@@ -14,14 +14,14 @@ Rectangle boxes[BOX_SIZE];
 // 1's represent walls and 0 open boxes
 int map[] =
 {
-1,1,1,1,1,1,1,1,
-1,0,0,0,0,0,0,1,
-1,0,0,0,0,0,0,1,
-1,0,0,0,0,0,0,1,
-1,0,0,0,0,0,0,1,
-1,0,0,0,0,0,0,1,
-1,0,0,0,0,0,0,1,
-1,1,1,1,1,1,1,1,
+-1,-1,-1,-1,-1,-1,-1,-1,
+-1,0,0,0,0,0,0,-1,
+-1,0,0,0,0,0,0,-1,
+-1,0,0,0,0,0,0,-1,
+-1,0,0,0,0,0,0,-1,
+-1,0,0,0,0,0,0,-1,
+-1,0,0,0,0,0,0,-1,
+-1,-1,-1,-1,-1,-1,-1,-1,
 };
 
 // the players current position on the screen
@@ -73,7 +73,7 @@ void drawMap(){
    for(int i = 0; i < mapY; i++){
        for(int j = 0; j < mapX; j++){
            // the i is the first element in every row of this array, and the j is each element in said row
-           Color color = (map[i * mapX + j] == 1) ? WHITE : DARKGRAY;
+           Color color = (map[i * mapX + j] == 1) || (map[i * mapX + j] == -1) ? WHITE : DARKGRAY;
            // draw the rectangle, draws from top left vertex
            // each point is BOX_SIZE (64px) away from each other
            DrawRectangle(j * BOX_SIZE - 1, i * BOX_SIZE - 1, BOX_SIZE - 1, BOX_SIZE - 1, color);
@@ -166,7 +166,7 @@ void drawRay(){
             mp = my * mapX + mx;
 
             // if you hit a wall
-            if(mp > 0 && mp < mapX * mapY && map[(int)mp] == 1){
+            if(mp > 0 && mp < mapX * mapY && (map[(int)mp] == 1 || map[(int)mp] == -1)){
                 hdepth = 8;
             }
                 
@@ -225,7 +225,7 @@ void drawRay(){
             // find the maps position in the array
             mp = my * mapX + mx;
             // if you hit a wall
-            if(mp > 0 && mp < mapX * mapY && map[(int)mp] == 1)
+            if(mp > 0 && mp < mapX * mapY && (map[(int)mp] == 1 || map[(int)mp] == -1))
                 vdepth = 8;
                 
             // if we dont hit a wall, check the next vert line using the offsets
@@ -315,7 +315,7 @@ void move(float mdx){
         // if it collides move back by the x compent of the players direction
         for(int i = 0; i < BOX_SIZE; i++){
             // check every rectangle, only "collide" when rectangle is a wall (map[i] ==1) or if your trying to leave the void
-            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1) || (px > GetScreenWidth() / 2.0 || px < 0))
+            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && (map[i] == 1 || map[i] == -1)))
                 px -= pdx * GetFrameTime() * ps;
         }  
 
@@ -323,7 +323,7 @@ void move(float mdx){
         py += pdy * GetFrameTime() * ps;
         // if collision, keep y at the same position
         for(int i = 0; i < BOX_SIZE; i++){
-            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1) || (py > GetScreenHeight() || py < 0 || py < 0))
+            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && (map[i] == 1 || map[i] == -1)))
                 py -= pdy * GetFrameTime() * ps;
         }       
 
@@ -337,7 +337,7 @@ void move(float mdx){
         // if it collides move back by the x compent of the players direction
         for(int i = 0; i < BOX_SIZE; i++){
             // check every rectangle, only "collide" when rectangle is a wall (map[i] ==1)
-            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1) || (px > GetScreenWidth() / 2.0 || px < 0))
+            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && (map[i] == 1 || map[i] == -1)))
                 px += pdx * GetFrameTime() * ps;
         }  
 
@@ -345,7 +345,7 @@ void move(float mdx){
         py -= pdy * GetFrameTime() * ps;
         // if collision, keep y at the same position
         for(int i = 0; i < BOX_SIZE; i++){
-            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1) || (py > GetScreenHeight() || py < 0 || py < 0))
+            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && (map[i] == 1 || map[i] == -1)))
                 py += pdy * GetFrameTime() * ps;
         }       
 
@@ -363,7 +363,7 @@ void move(float mdx){
         px += srdx * GetFrameTime() * ps;
         // if it collides move back by the x compent of the players direction
         for(int i = 0; i < BOX_SIZE; i++){
-            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1) || (px > GetScreenWidth() / 2.0 || px < 0))
+            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && (map[i] == 1 || map[i] == -1)))
                 // keep the player at the bounds of the wall
                 px -= srdx * GetFrameTime() * ps;
         }  
@@ -372,7 +372,7 @@ void move(float mdx){
         py += srdy * GetFrameTime() * ps;
         // if collision, keep y at the same position
         for(int i = 0; i < BOX_SIZE; i++){
-            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1) || (py > GetScreenHeight() || py < 0))
+            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && (map[i] == 1 || map[i] == -1)))
                 py -= srdy * GetFrameTime() * ps;
         }       
     }
@@ -386,7 +386,7 @@ void move(float mdx){
         px += sldx * GetFrameTime() * ps;
         // if it collides move back by the x compent of the players direction
         for(int i = 0; i < BOX_SIZE; i++){
-            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1) || (px > GetScreenWidth() / 2.0 || px < 0))
+            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && (map[i] == 1 || map[i] == -1)))
                 // keep the player at the bounds of the wall
                 px -= sldx * GetFrameTime() * ps;
         }  
@@ -395,7 +395,7 @@ void move(float mdx){
         py += sldy * GetFrameTime() * ps;
         // if collision, keep y at the same position
         for(int i = 0; i < BOX_SIZE; i++){
-            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && map[i] == 1) || (py > GetScreenHeight() || py < 0))
+            if ((CheckCollisionCircleRec((Vector2){px, py}, pr, boxes[i]) && (map[i] == 1 || map[i] == -1)))
                 py -= sldy * GetFrameTime() * ps;
         }       
     }
@@ -417,17 +417,17 @@ int main() {
 
     // player starts at the center of left window
     px = GetScreenWidth() / 4.0;
-    py = GetScreenHeight() / 4.0;
+    py = GetScreenHeight() / 2.0;
 
     // quantitive properties of player
     pr = 5;
     pa = 90.00;
     pt = 2.00;
-    ps = 150.00;
+    ps = 100.00;
     pdx = 0.00;
     pdy = sin(pa * DEG2RAD);
 
-    // the game loop, everything that runs is within this loop
+    // while the game is running, preform these operations
     while(!WindowShouldClose()){
         // start of the rendering phase
         BeginDrawing();
@@ -458,7 +458,7 @@ int main() {
                 Vector2 mc = GetMousePosition();
                 for(int i = 0; i < BOX_SIZE; i++){
                     // Check collision against the rectangles representing the map
-                    if(CheckCollisionPointRec(mc, boxes[i])){
+                    if(CheckCollisionPointRec(mc, boxes[i]) && map[i] != -1){
                         // toggle between walls and empty boxes
                         map[i] = (map[i] == 1) ? 0 : 1;
                     }
@@ -470,7 +470,7 @@ int main() {
         else{ 
             // using mouse to see the map
             Vector2 currentMousePosition = GetMousePosition();
-            // difference between the prev and current position's x/y componenets
+            // difference between the prev and current position's x componenets, for turing player
             float mdx = prevMousePosition.x - currentMousePosition.x;
             // handling player movement
             move(mdx);
@@ -478,8 +478,6 @@ int main() {
             prevMousePosition = currentMousePosition;
         }
         
-        // benchmark testing
-        DrawFPS(GetScreenWidth() * .90, GetScreenHeight() * .05);
         // make background black
         ClearBackground(BLACK);
         // drawing the map
@@ -488,6 +486,14 @@ int main() {
         drawPlayer();
         // draw the rays
         drawRay();
+
+        // headers of the screen
+        DrawText("2D VIEW", GetScreenWidth() / 6, GetScreenHeight() * .02, 50, BLUE);
+        DrawText("3D VIEW", GetScreenWidth() * .67, GetScreenHeight() * .02, 50, BLUE);
+
+        // benchmark testing
+        DrawFPS(GetScreenWidth() * .90, GetScreenHeight() * .9);
+
         // ending the rendering phase
         EndDrawing();
     }

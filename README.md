@@ -1,5 +1,8 @@
-![readme](https://github.com/Bubbq/Raycast-Engine/assets/134325235/60819d12-d32c-4b48-bc4a-de564faf7281)
+
+![edit](https://github.com/Bubbq/Game-Engine-Editor/assets/134325235/2e18487d-96bc-479b-a79e-393f9d781bff)
+
 **Controls**
+
 Move with WASD keys and turn with mouse
 
 Q - Playmode (move avatar around map)

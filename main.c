@@ -2,6 +2,7 @@
 #include <raylib.h>
 #include <float.h>
 #include <raymath.h>
+#include <stdlib.h>
 
 // size of each rectangle in the map
 #define BOX_SIZE 64
@@ -32,6 +33,8 @@ float pr, pa;
 float pt, ps;
 // the x and y comp of the angle the player is facing
 float pdx, pdy;
+// the vertial offset that the player is looking at the wall with and the speed of this movement
+float pz, pzs;
 
 // to load map from save file if user has one
 void loadMap(){
@@ -265,9 +268,13 @@ void drawRay(){
         DrawLineEx((Vector2){px, py}, (Vector2){px + (pdx * 30), py + (pdy * 30)}, 3, GREEN);
 
         // the length of each line drawn will be the block area * screen height / distance
-        float lineH = (BOX_SIZE * GetScreenHeight() * .6) / fd; if(lineH > GetScreenHeight() * .70) {lineH = GetScreenHeight() * .70;}
+        float lineH = (BOX_SIZE * GetScreenHeight() * .6) / fd; if(lineH > GetScreenHeight() * 3) {lineH = GetScreenHeight() * 3;}
+
         // where every line should start from to prevent warping, grows upward by half the line hieght by subtracting as more down = increase in y
-        float lineO = (GetScreenHeight() / 2.0) - (lineH / 2.0);
+        float lineO = (GetScreenHeight() / 2.0) - (lineH / 2.0) + pz * 2;
+
+        // adjust the bottom of the line to the vertical offset of the player, giving the illusion of looking up or down
+        lineH += pz / 3.0;
             
         // only draw wall if player is not looking into void
         if((rx <= GetScreenWidth() / 2.0 && rx >= 0) && (ry <= GetScreenHeight() && ry >= 0))
@@ -283,8 +290,10 @@ void drawRay(){
 
 // to draw player based on updating position
 void drawPlayer(){
-  // draw circle based on player coords
-  DrawCircle(px, py, pr, BLUE);
+    // draw circle based on player coords
+    DrawCircle(px, py, pr, BLUE);
+    // crosshair of player in 3D view
+    DrawCircle(GetScreenWidth() * .75, GetScreenHeight() * .5, 3, GREEN);  
 }
 
 // to update player position and angle based on WASD keys
@@ -419,12 +428,14 @@ int main() {
     px = GetScreenWidth() / 4.0;
     py = GetScreenHeight() / 2.0;
 
-    // quantitive properties of player
+    // quantitive properties 
     pr = 5;
     pa = 90.00;
-    pt = 2.00;
+    pt = 1.00;
     ps = 100.00;
     pdx = 0.00;
+    pz = 0.00;
+    pzs = 1.25;
     pdy = sin(pa * DEG2RAD);
 
     // while the game is running, preform these operations
@@ -463,15 +474,26 @@ int main() {
                         map[i] = (map[i] == 1) ? 0 : 1;
                     }
                 }
-            }
+            } 
         }
 
-        // in play mode, user can move the player, walking around the map
+        // in play mode, user can move the player around the map
         else{ 
             // using mouse to see the map
             Vector2 currentMousePosition = GetMousePosition();
-            // difference between the prev and current position's x componenets, for turing player
+            // difference between the prev and current position's x/y componenets, for turing player
             float mdx = prevMousePosition.x - currentMousePosition.x;
+            float mdy = prevMousePosition.y - currentMousePosition.y;
+
+            // adjust the offset for looking both down and up
+
+            if(abs((int)mdy) > 4){
+                if(mdy < 0)
+                    pz -= pzs;
+                else if(mdy > 0)
+                    pz += pzs;
+            }
+
             // handling player movement
             move(mdx);
             // Update previous mouse position to continue checking the difference while game is running
@@ -482,14 +504,13 @@ int main() {
         ClearBackground(BLACK);
         // drawing the map
         drawMap();
-        // rendering the player
-        drawPlayer();
         // draw the rays
         drawRay();
-
-        // headers of the screen
-        DrawText("2D VIEW", GetScreenWidth() / 6, GetScreenHeight() * .02, 50, BLUE);
-        DrawText("3D VIEW", GetScreenWidth() * .67, GetScreenHeight() * .02, 50, BLUE);
+        // rendering the player
+        drawPlayer();
+        // screen headers
+        DrawText("2D VIEW", GetScreenWidth() * .167, GetScreenHeight() * .02, 50, BLUE);
+        DrawText("3D VIEW", GetScreenWidth() * .667, GetScreenHeight() * .02, 50, BLUE);
 
         // benchmark testing
         DrawFPS(GetScreenWidth() * .90, GetScreenHeight() * .9);

@@ -10,18 +10,18 @@
 // map is 8x8
 int mapX = 8;
 int mapY = 8;
-// the list of every rectangle in the map, either 1 for wall, or 0 for moveable space
+// the list of every rectangle in the map
 Rectangle boxes[BOX_SIZE];
-// 1's represent walls and 0 open boxes
+// 1's represent walls and 0 open boxes (-1 walls cannot be altered)
 int map[] =
 {
 -1,-1,-1,-1,-1,-1,-1,-1,
--1,0,0,0,0,0,0,-1,
--1,0,0,0,0,0,0,-1,
--1,0,0,0,0,0,0,-1,
--1,0,0,0,0,0,0,-1,
--1,0,0,0,0,0,0,-1,
--1,0,0,0,0,0,0,-1,
+-1, 0, 0, 0, 0, 0, 0,-1,
+-1, 0, 0, 0, 0, 0, 0,-1,
+-1, 0, 0, 0, 0, 0, 0,-1,
+-1, 0, 0, 0, 0, 0, 0,-1,
+-1, 0, 0, 0, 0, 0, 0,-1,
+-1, 0, 0, 0, 0, 0, 0,-1,
 -1,-1,-1,-1,-1,-1,-1,-1,
 };
 
@@ -267,14 +267,17 @@ void drawRay(){
         // drawing where the player is currently facing
         DrawLineEx((Vector2){px, py}, (Vector2){px + (pdx * 30), py + (pdy * 30)}, 3, GREEN);
 
+        // fixing fisheye effect on walls
+        float angleDiff = pa - ra; if(angleDiff > 360){angleDiff -= 360;} if(angleDiff < 0) {angleDiff += 360;}
+        fd *= cos(angleDiff * DEG2RAD);
+
         // the length of each line drawn will be the block area * screen height / distance
-        float lineH = (BOX_SIZE * GetScreenHeight() * .6) / fd; if(lineH > GetScreenHeight() * 3) {lineH = GetScreenHeight() * 3;}
-
+        float lineH = (BOX_SIZE * GetScreenHeight() * .6) / fd; 
         // where every line should start from to prevent warping, grows upward by half the line hieght by subtracting as more down = increase in y
-        float lineO = (GetScreenHeight() / 2.0) - (lineH / 2.0) + pz * 2;
-
+        float lineO = (GetScreenHeight() / 2.0) - (lineH / 2.0) + pz * 10;
+       
         // adjust the bottom of the line to the vertical offset of the player, giving the illusion of looking up or down
-        lineH += pz / 3.0;
+        lineH += pz / 10.0;
             
         // only draw wall if player is not looking into void
         if((rx <= GetScreenWidth() / 2.0 && rx >= 0) && (ry <= GetScreenHeight() && ry >= 0))
@@ -299,22 +302,23 @@ void drawPlayer(){
 // to update player position and angle based on WASD keys
 void move(float mdx){
     // Check if the mouse moved left or right based on the difference in position passed
-
-    // moving right
-    if (mdx < 0) {
-        pa += pt;
-        pdx = cos(pa * DEG2RAD);
-        pdy = sin(pa * DEG2RAD);
-        // angle correction
-        if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
-    }
-        
-    // moving left
-    if (mdx > 0) {
-        pa -= pt;
-        pdx = cos(pa * DEG2RAD);
-        pdy = sin(pa * DEG2RAD);
-        if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
+    if(abs((int)mdx) > 7){
+        // moving right
+        if (mdx < 0) {
+            pa += pt;
+            pdx = cos(pa * DEG2RAD);
+            pdy = sin(pa * DEG2RAD);
+            // angle correction
+            if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
+        }
+            
+        // moving left
+        if (mdx > 0) {
+            pa -= pt;
+            pdx = cos(pa * DEG2RAD);
+            pdy = sin(pa * DEG2RAD);
+            if(pa > 360) {pa -= 360;} if(pa < 0) {pa += 360;}
+        }
     }
         
     // W and S keys are for forward and backward movement
@@ -416,7 +420,7 @@ int main() {
     // creating window
     InitWindow(1020, 512, "Raycast Engine");
 
-    // load prevois map, if there is one
+    // load previous map, if applicable
     loadMap();
 
     // starting in playmode, where you can move the player through the map
@@ -424,19 +428,17 @@ int main() {
     DisableCursor();
     Vector2 prevMousePosition = GetMousePosition();
 
-    // player starts at the center of left window
+    // quantitive properties 
     px = GetScreenWidth() / 4.0;
     py = GetScreenHeight() / 2.0;
-
-    // quantitive properties 
     pr = 5;
     pa = 90.00;
-    pt = 1.00;
+    pt = 1.50;
     ps = 100.00;
     pdx = 0.00;
+    pdy = sin(pa * DEG2RAD);
     pz = 0.00;
     pzs = 1.25;
-    pdy = sin(pa * DEG2RAD);
 
     // while the game is running, preform these operations
     while(!WindowShouldClose()){
@@ -455,7 +457,6 @@ int main() {
             edit = false;
             // cannot see cursor
             DisableCursor();
-
             // save map after leaving edit mode
             saveMap();
             // load new changes
@@ -487,7 +488,7 @@ int main() {
 
             // adjust the offset for looking both down and up
 
-            if(abs((int)mdy) > 4){
+            if(abs((int)mdy) > 7){
                 if(mdy < 0)
                     pz -= pzs;
                 else if(mdy > 0)
@@ -511,10 +512,8 @@ int main() {
         // screen headers
         DrawText("2D VIEW", GetScreenWidth() * .167, GetScreenHeight() * .02, 50, BLUE);
         DrawText("3D VIEW", GetScreenWidth() * .667, GetScreenHeight() * .02, 50, BLUE);
-
         // benchmark testing
         DrawFPS(GetScreenWidth() * .90, GetScreenHeight() * .9);
-
         // ending the rendering phase
         EndDrawing();
     }
@@ -523,4 +522,3 @@ int main() {
     CloseWindow();
     return 0;
 }
-

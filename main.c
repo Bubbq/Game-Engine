@@ -284,11 +284,11 @@ void drawPlayer(){
 }
 
 // to update player position and angle based on WASD keys
-void movement(float mdx, float mdy){
+void movement(){
     // Check if the mouse moved left, right, up, or down based on the difference in position passed
-    if(abs((int)mdx) > 3){
+    if(abs((int)GetMouseDelta().x) > 3){
         // moving right or left turns the player, adjusting the x/y components of the players movement
-        if (mdx < 0) {
+        if (GetMouseDelta().x > 0) {
             pa += pt;
             pdx = cos(pa * DEG2RAD);
             pdy = sin(pa * DEG2RAD);
@@ -297,7 +297,7 @@ void movement(float mdx, float mdy){
         }
             
         // moving left
-        if (mdx > 0) {
+        if (GetMouseDelta().x < 0) {
             pa -= pt;
             pdx = cos(pa * DEG2RAD);
             pdy = sin(pa * DEG2RAD);
@@ -306,10 +306,10 @@ void movement(float mdx, float mdy){
     }
 
     // moving up or down
-    if(abs((int)mdy) > 2){
-        if(mdy < 0)
+    if(abs((int)GetMouseDelta().y) > 2){
+        if(GetMouseDelta().y > 0)
             pz -= pzs;
-        if(mdy > 0)
+        if(GetMouseDelta().y < 0)
             pz += pzs;
     }
         
@@ -410,7 +410,6 @@ int main() {
     bool play = true;
 
     DisableCursor();
-    Vector2 prevMousePosition = GetMousePosition();
 
     // start at left center window
     px = GetScreenWidth() / 4.0;
@@ -419,7 +418,7 @@ int main() {
     // other quantitative properties
     pr = 5;
     pa = 90.00;
-    pt = 1.00;
+    pt = 1.30;
     ps = 100.00;
     pdx = 0.00;
     pdy = sin(pa * DEG2RAD);
@@ -465,16 +464,10 @@ int main() {
         }
 
         // in play mode, user can move the player around the map
-        if(play){ 
-            Vector2 currentMousePosition = GetMousePosition();
-            // difference in vertical and horizontal movement of mouse location
-            float mdx = prevMousePosition.x - currentMousePosition.x;
-            float mdy = prevMousePosition.y - currentMousePosition.y;
+        if(play)
             // handling player movement
-            movement(mdx, mdy);
-            // Update previous mouse position to continue checking the difference while game is running
-            prevMousePosition = currentMousePosition;
-        }
+            movement();
+        
         
         // make background black
         ClearBackground(BLACK);

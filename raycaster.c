@@ -1,11 +1,15 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "headers/raylib.h"
 #include "headers/raymath.h"
 
+#define RAYGUI_IMPLEMENTATION
+#include "headers/raygui.h"
+
 #define CELL_SIZE 64
-#define NRAYS 120
+#define NRAYS 240
 #define ROW 16
 #define COL 16
 #define MAP_SIZE (ROW * COL)
@@ -14,8 +18,6 @@ const int FPS = 60;
 const float SCR = CELL_SIZE * ROW;
 const float LINE_THICKNESS = SCR / NRAYS;
 const Vector2 CENTER = {(SCR / 2.0), (SCR / 2.0)};
-
-float pz, pzs;
 
 float angle_correction(float angle)
 {
@@ -95,26 +97,36 @@ void edit_grid(Grid map[MAP_SIZE], Vector2 player_position, float radius)
 
 void draw_grid(Grid map[MAP_SIZE])
 {
-    for(int i = 0; i < MAP_SIZE; i++)
+    for(int i = 0; i < ROW; i++)
     {
-        DrawRectangleRec(map[i].bounds, map[i].type == WALL ? RAYWHITE : GRAY);
+        for(int j = 0; j < COL; j++)
+        {
+            DrawRectangleRec(map[(i * ROW) + j].bounds, map[(i * ROW) + j].type == WALL ? RAYWHITE : GRAY);
+            DrawLine((j * CELL_SIZE), 0, (j * CELL_SIZE), SCR, BLACK);
+        }
+
+        DrawLine(0, (i * CELL_SIZE), SCR, (i * CELL_SIZE), BLACK);
     }
 }
 
-void draw_world(float distances[NRAYS])
+typedef enum
 {
-    for(int i = 0; i < NRAYS; i++)
+    HORIZONTAL = 0,
+    VERTICAL = 1,
+} Collision;
+
+void draw_world(float distances[NRAYS], Collision collision_type[NRAYS], float vertical_offset, int fov)
+{
+    for(int i = fov; i < (NRAYS - fov); i++)
     {
         // the length of each line drawn will be the height of the block proportional to the screens height divided by how far the player is from the wall
-        float line_height = (CELL_SIZE * GetScreenHeight() * .6) / distances[i]; 
-        // every line starts from half the height of the screen and moved upwards by half the increase in height
-        float line_start = (GetScreenHeight() / 2.00) - (line_height / 2.0) + (pz * 20);
-       
-        // adjust the bottom of the line by the vertical offset of the player, giving the illusion of looking up or down
-        line_height += pz / 10.0;
+        float line_height = (CELL_SIZE * GetScreenHeight() * 0.50) / distances[i]; 
+
+        // starting point of line grows downward
+        float line_start = vertical_offset + (GetScreenHeight() / 2.00) - (line_height / 2.0);
             
         // 3D render
-        DrawLineEx((Vector2){(i * LINE_THICKNESS), line_start}, (Vector2){(i * LINE_THICKNESS),  (line_start + line_height)}, LINE_THICKNESS, BLUE);   
+        DrawLineEx((Vector2){(i * LINE_THICKNESS), line_start}, (Vector2){(i * LINE_THICKNESS),  (line_start + line_height)}, LINE_THICKNESS, (collision_type[i] == HORIZONTAL) ? BLUE : DARKBLUE);   
     }
 }
 
@@ -125,7 +137,9 @@ typedef struct
     float angle;
     float radius;
     float speed;
-    float turn_speed;
+    float horizontal_turn_speed;
+    float vertical_turn_speed;
+    float vertical_offset;
 } Player;
 
 Player init_player()
@@ -134,24 +148,18 @@ Player init_player()
 
     player.position = CENTER;
     player.angle = 0.00;
-    player.radius = 10.00;
+    player.radius = 5.00;
     player.speed = 250.00;
-    player.turn_speed = 1.50;
+    player.horizontal_turn_speed = 1.50;
+    player.vertical_turn_speed = 7.50;
+    player.vertical_offset = 0.00;
 
     return player;
-}
-
-void show_player_direction(Vector2 position, float angle)
-{
-    Vector2 final_position = Vector2Scale((Vector2){cosf(angle * DEG2RAD), sinf(angle * DEG2RAD)}, 50);
-
-    DrawLineEx(position, Vector2Add(position, final_position), 1, GREEN);
 }
 
 void draw_player(Player *player)
 {
     DrawCircleSector(player->position, player->radius, 0, 360, 1, BLUE);
-    show_player_direction(player->position, player->angle);
 }
 
 bool player_wall_collision(Grid map[MAP_SIZE], Vector2 position, float radius)
@@ -206,26 +214,57 @@ void move_player(Grid map[MAP_SIZE], Player *player, float angle)
     }
 }
 
-void movement_controls(Grid map[MAP_SIZE], Player *player)
+typedef enum
 {
-    // direction
-    if(abs((int)GetMouseDelta().x) > 0)
+    _2D = 0,
+    _3D = 1,
+} Dimension;
+
+void change_direction(Player *player, Dimension dimension)
+{
+    float delta_x = GetMouseDelta().x;
+    float delta_y = GetMouseDelta().y;
+
+    switch(dimension)
     {
-        // player->angle = get_angle(GetMousePosition(), player->position);
-        if(GetMouseDelta().x < 0)
-        {
-            player->angle -= player->turn_speed;
-        }
+        case _2D:
+            player->angle = get_angle(GetMousePosition(), player->position);
+            break;
+        
+        case _3D:
+            if(abs((int)delta_x) > 0)
+            { 
+                if(delta_x < 0)
+                {
+                    player->angle -= player->horizontal_turn_speed;
+                }
 
-        else if(GetMouseDelta().x > 0)
-        {
-            player->angle += player->turn_speed;
-        }
+                else
+                {
+                    player->angle += player->horizontal_turn_speed;
+                }
+            }
 
-        player->angle = angle_correction(player->angle);
+            if(abs((int)delta_y) > 0)
+            {
+                if(delta_y < 0)
+                {
+                    player->vertical_offset += player->vertical_turn_speed;
+                }
+
+                else
+                {
+                    player->vertical_offset -= player->vertical_turn_speed;
+                }
+            }
+            break;
     }
 
-    // movement
+    player->angle = angle_correction(player->angle);
+}
+
+void movement_controls(Grid map[MAP_SIZE], Player *player)
+{
     if(IsKeyDown(KEY_W))
     {
         move_player(map, player, player->angle);
@@ -233,12 +272,12 @@ void movement_controls(Grid map[MAP_SIZE], Player *player)
 
     if(IsKeyDown(KEY_A))
     {
-       move_player(map, player, (player->angle - 90));
+        move_player(map, player, (player->angle - 90.00));
     }
 
     if(IsKeyDown(KEY_S))
     {
-        move_player(map, player, (player->angle - 180));
+        move_player(map, player,  (player->angle - 180.00));
     }
     
     if(IsKeyDown(KEY_D))
@@ -268,7 +307,7 @@ Vector2 find_collision_point(Grid map[MAP_SIZE], RAY ray)
         mp = (my * ROW) + mx;
 
         // if you hit a wall
-        if((mp > 0) && (mp < MAP_SIZE) && (map[(int)mp].type == WALL))
+        if(((mp > 0) && (mp < MAP_SIZE)) && (map[mp].type == WALL))
         {
             line_depth = ROW;
         }
@@ -355,11 +394,11 @@ RAY get_vertical_ray(Vector2 player_position, float ray_angle)
     return ray;
 }
 
-void calculate_ray_distances(Grid map[MAP_SIZE], Player *player, float distances[NRAYS])
+void calculate_ray_distances(Grid map[MAP_SIZE], Player *player, Vector2 rays[NRAYS], float distances[NRAYS], Collision collisions[NRAYS], int fov)
 {
     float ray_angle = angle_correction(player->angle - 30);
 
-    for(int r = 0; r < NRAYS; r++, ray_angle = angle_correction(ray_angle + 0.50))
+    for(int r = 0; r < NRAYS; r++, ray_angle = angle_correction(ray_angle + 0.25))
     {
         RAY horizontal_ray = get_horizontal_ray(player->position, ray_angle); 
         Vector2 horizontal_collision_point = find_collision_point(map, horizontal_ray);
@@ -371,49 +410,62 @@ void calculate_ray_distances(Grid map[MAP_SIZE], Player *player, float distances
 
         // choose the shortest collision path to draw
         float final_distance;
-        // Vector2 collision_point;
+        Vector2 collision_point;
         
         if(horizontal_distance < vertical_distance)
         {
             final_distance = horizontal_distance;
-            // collision_point = horizontal_collision_point;
+            collision_point = horizontal_collision_point;
+            collisions[r] = HORIZONTAL;
         }
 
         else
         {
             final_distance = vertical_distance;
-            // collision_point = vertical_collision_point;
+            collision_point = vertical_collision_point;
+            collisions[r] = VERTICAL;
         }
-        
-        // 2D ray render
-        // DrawLineEx(player->position, collision_point, 1, ORANGE);
         
         // prevent fisheye effect
         float angle_difference = angle_correction(player->angle - ray_angle);
         final_distance *= cos(angle_difference * DEG2RAD);
         
+        rays[r] = collision_point;
         distances[r] = final_distance;
     }
 }
 
-typedef enum
+void draw_rays(Vector2 rays[NRAYS], Vector2 player_position, int fov)
 {
-    _2D = 0,
-    _3D = 1,
-} Dimension;
+    for(int i = fov; i < (NRAYS - fov); i++)
+    {
+        DrawLineV(player_position, rays[i], ORANGE);
+    }
+}
 
 void change_dimension(Dimension *dimension)
 {
     if(IsKeyPressed(KEY_KP_2))
     {
-        EnableCursor();
         *dimension = _2D;
     }
 
     else if(IsKeyPressed(KEY_KP_3))
     {
-        DisableCursor();
         *dimension = _3D;
+    }
+}
+
+void toggle_cursor()
+{
+    if(IsKeyPressed(KEY_E))
+    {
+        EnableCursor();
+    }
+
+    else if(IsKeyPressed(KEY_Q))
+    {
+        DisableCursor();
     }
 }
 
@@ -424,13 +476,32 @@ void init()
     SetTargetFPS(FPS); 
 }
 
+void settings(float *movement_speed, float *horizontal_turn_speed, float *vertical_turn_speed)
+{
+    char text[10];
+
+    DrawText("SPEED", 10, 10, 10, GRAY);
+    sprintf(text, "%.2f", *movement_speed);
+    GuiSliderBar((Rectangle){MeasureText("SPEED", 10) + 15,10,100,10}, "", text, movement_speed, 1.00, 500.00);
+
+    DrawText("HORIZONTAL TURN SPEED", 10, 25, 10, GRAY);
+    sprintf(text, "%.2f", *horizontal_turn_speed);
+    GuiSliderBar((Rectangle){MeasureText("HORIZONTAL TURN SPEED", 10) + 15,25,100,10}, "", text, horizontal_turn_speed, 0.00, 3.00);
+
+    DrawText("VERTICAL TURN SPEED", 10, 40, 10, GRAY);
+    sprintf(text, "%.2f", *vertical_turn_speed);
+    GuiSliderBar((Rectangle){MeasureText("HORIZONTAL TURN SPEED", 10) + 15,40,100,10}, "", text, vertical_turn_speed, 0.00, 10.00);
+}
+
 int main() 
 {
     init();
-
+    int field_of_view = 0;
     Grid map[MAP_SIZE]; init_map(map);
     Player player = init_player();
     Dimension dimension = _2D;
+    Vector2 rays[NRAYS];
+    Collision collisions[NRAYS];
     float distances[NRAYS];
 
     while(!WindowShouldClose())
@@ -438,11 +509,12 @@ int main()
         // only calculate ray distances during change in angle or player position
         if(abs((int)GetMouseDelta().x) > 0 || !Vector2Equals(Vector2Subtract(player.position, player.previous_position), Vector2Zero()))
         {
-            calculate_ray_distances(map, &player, distances); 
+            calculate_ray_distances(map, &player, rays, distances, collisions, field_of_view); 
         }
+        toggle_cursor();
         change_dimension(&dimension);
         movement_controls(map, &player);
-
+        change_direction(&player, dimension);
         BeginDrawing();
             ClearBackground(BLACK);
             switch(dimension)
@@ -450,22 +522,23 @@ int main()
                 case _2D: 
                     edit_grid(map, player.position, player.radius);
                     draw_grid(map);
+                    draw_rays(rays, player.position, field_of_view);
                     draw_player(&player);
                     break;
                 
                 case _3D:
-                    draw_world(distances);
+                    ClearBackground(BLACK);
+                    draw_world(distances, collisions, player.vertical_offset, field_of_view);
                     DrawCircleSector(CENTER, 3, 0, 360, 1, GREEN);
-                    DrawFPS(0, 0);
+                    settings(&player.speed, &player.horizontal_turn_speed, &player.vertical_turn_speed);
+                    DrawFPS((SCR - 80), 0);
                     break;
             }
         EndDrawing();
     }
-
     CloseWindow();
     return 0;
 }
 
 // TODO
-// change movement behavior when in 2d and 3d
-// clean 3d render
+// FOV slider and functionality

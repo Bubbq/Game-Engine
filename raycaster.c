@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "headers/raylib.h"
 #include "headers/raymath.h"
 
@@ -8,36 +5,14 @@
 #include "headers/raygui.h"
 
 #define CELL_SIZE 64
-#define NRAYS 180
-#define ROW 16
-#define COL 16
+#define ROW 15
+#define COL 15
 #define MAP_SIZE (ROW * COL)
+#define NRAYS 180
 
-const int FPS = 60;
+const int FPS = 120;
 const float SCR = CELL_SIZE * ROW;
 const Vector2 CENTER = {(SCR / 2.0), (SCR / 2.0)};
-
-float angle_correction(float angle)
-{
-    if(angle > 360)
-        angle -= 360;
-
-    else if(angle < 0)
-        angle += 360;
-
-    // BAD SOLUTION LMFAO
-    if(angle == 0.00)
-        angle += 0.01;
-
-    return angle;
-}
-
-float get_angle(Vector2 v1, Vector2 v2)
-{
-    Vector2 diff = Vector2Subtract(v1, v2);
-
-    return angle_correction((atan2f(diff.y * DEG2RAD, diff.x * DEG2RAD)) * RAD2DEG);
-}
 
 typedef enum
 {
@@ -51,6 +26,58 @@ typedef struct
     Type type;
 } Grid;
 
+typedef enum
+{
+    HORIZONTAL = 0,
+    VERTICAL = 1,
+    NONE = 2,
+} Collision;
+
+typedef struct
+{
+    Vector2 position;
+    Vector2 previous_position;
+    float angle;
+    float radius;
+    float speed;
+    float horizontal_turn_speed;
+    float vertical_turn_speed;
+    float vertical_offset;
+} Player;
+
+typedef enum
+{
+    _2D = 0,
+    _3D = 1,
+} Dimension;
+
+typedef struct
+{
+    Vector2 position;
+    Vector2 offset;
+} RAY;
+
+float angle_correction(float angle)
+{
+    if(angle > 360)
+        angle -= 360;
+
+    else if(angle < 0)
+        angle += 360;
+
+    if(angle == 0)
+        angle += 0.001;
+
+    return angle;
+}
+
+float get_angle(Vector2 v1, Vector2 v2)
+{
+    Vector2 diff = Vector2Subtract(v1, v2);
+
+    return angle_correction(atan2f(diff.y * DEG2RAD, diff.x * DEG2RAD) * RAD2DEG);
+}
+
 void init_map(Grid map[MAP_SIZE])
 {
     Vector2 current_position = (Vector2){0,0};
@@ -59,6 +86,7 @@ void init_map(Grid map[MAP_SIZE])
     {
         for(int j = 0; j < COL; j++)
         {
+            // outer cells are walls
             map[(i * ROW) + j].bounds = (Rectangle){current_position.x, current_position.y, CELL_SIZE, CELL_SIZE};
             map[(i * ROW) + j].type = (i == 0 || i == (ROW - 1) || j == 0 || j == (COL - 1)) ? WALL : FLOOR;
             
@@ -69,11 +97,10 @@ void init_map(Grid map[MAP_SIZE])
     }
 }
 
-void edit_grid(Grid map[MAP_SIZE], Vector2 player_position, float radius)
+void edit_map(Grid map[MAP_SIZE], Vector2 player_position, float radius)
 {
     for(int i = 0; i < MAP_SIZE; i++)
     {
-        // add walls
         if(IsMouseButtonDown(MOUSE_BUTTON_LEFT))
         {
             if(CheckCollisionPointRec(GetMousePosition(), map[i].bounds) && !CheckCollisionCircleRec(player_position, radius, map[i].bounds))
@@ -82,7 +109,6 @@ void edit_grid(Grid map[MAP_SIZE], Vector2 player_position, float radius)
             }
         }
 
-        // remove walls
         else if(IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
         {
             if(CheckCollisionPointRec(GetMousePosition(), map[i].bounds))
@@ -93,7 +119,7 @@ void edit_grid(Grid map[MAP_SIZE], Vector2 player_position, float radius)
     }
 }
 
-void draw_grid(Grid map[MAP_SIZE])
+void draw_map(Grid map[MAP_SIZE])
 {
     for(int i = 0; i < ROW; i++)
     {
@@ -107,12 +133,6 @@ void draw_grid(Grid map[MAP_SIZE])
     }
 }
 
-typedef enum
-{
-    HORIZONTAL = 0,
-    VERTICAL = 1,
-} Collision;
-
 void draw_world(float distances[NRAYS], Collision collision_type[NRAYS], float vertical_offset, float fov)
 {
     const float LINE_THICKNESS = (SCR / (NRAYS - (fov * 2)));
@@ -125,7 +145,6 @@ void draw_world(float distances[NRAYS], Collision collision_type[NRAYS], float v
         // starting point of line grows downward
         float line_start = vertical_offset + (GetScreenHeight() / 2.00) - (line_height / 2.0);
             
-        // 3D render
         // grass
         DrawLineEx((Vector2){((i - fov) * LINE_THICKNESS), line_start}, (Vector2){((i - fov) * LINE_THICKNESS),  SCR}, LINE_THICKNESS, GREEN);
         // sky
@@ -134,18 +153,6 @@ void draw_world(float distances[NRAYS], Collision collision_type[NRAYS], float v
         DrawLineEx((Vector2){((i - fov) * LINE_THICKNESS), line_start}, (Vector2){((i - fov) * LINE_THICKNESS),  (line_start + line_height)}, LINE_THICKNESS, (collision_type[i] == HORIZONTAL) ? RED : MAROON);   
     }
 }
-
-typedef struct
-{
-    Vector2 position;
-    Vector2 previous_position;
-    float angle;
-    float radius;
-    float speed;
-    float horizontal_turn_speed;
-    float vertical_turn_speed;
-    float vertical_offset;
-} Player;
 
 Player init_player()
 {
@@ -167,11 +174,11 @@ void draw_player(Player *player)
     DrawCircleSector(player->position, player->radius, 0, 360, 1, BLUE);
 }
 
-bool player_wall_collision(Grid map[MAP_SIZE], Vector2 position, float radius)
+bool player_wall_collision(Grid map[MAP_SIZE], Vector2 player_position, float radius)
 {
     for(int i = 0; i < MAP_SIZE; i++)
     {
-        if((CheckCollisionCircleRec(position, radius, map[i].bounds)) && (map[i].type == WALL))
+        if((CheckCollisionCircleRec(player_position, radius, map[i].bounds)) && (map[i].type == WALL))
         {
             return true;
         }
@@ -197,33 +204,27 @@ void move_player(Grid map[MAP_SIZE], Player *player, float angle)
 {
     player->previous_position = player->position;
 
-    // movement direction
-    float dx = cosf(angle * DEG2RAD);
-    float dy = sinf(angle * DEG2RAD);
-
-    // prevents speedup during diagonal movement
-    float movement_speed = is_movement_diagonal() ? (player->speed / sqrtf(2.0)) : player->speed;
-
-    player->position.x += (dx * movement_speed * GetFrameTime());
+    // prevent speedup during diagonal movement
+    float movement_speed = (player->speed / (is_movement_diagonal() ? sqrtf(2.00) : 1));
     
+    // movement direction
+    float dy = sinf(angle * DEG2RAD) * movement_speed * GetFrameTime();
+    float dx = cosf(angle * DEG2RAD) * movement_speed * GetFrameTime();
+
+    player->position.x += dx;
+
     if(player_wall_collision(map, player->position, player->radius))
     {
-        player->position.x -= (dx * movement_speed * GetFrameTime());
+        player->position.x -= dx;
     }
     
-    player->position.y += (dy * movement_speed * GetFrameTime());
-    
+    player->position.y += dy;
+
     if(player_wall_collision(map, player->position, player->radius))
     {
-        player->position.y -= (dy * movement_speed * GetFrameTime());
+        player->position.y -= dy;
     }
 }
-
-typedef enum
-{
-    _2D = 0,
-    _3D = 1,
-} Dimension;
 
 void change_direction(Player *player, Dimension dimension)
 {
@@ -239,28 +240,12 @@ void change_direction(Player *player, Dimension dimension)
         case _3D:
             if(abs((int)delta_x) > 0)
             { 
-                if(delta_x < 0)
-                {
-                    player->angle -= player->horizontal_turn_speed;
-                }
-
-                else
-                {
-                    player->angle += player->horizontal_turn_speed;
-                }
+                player->angle += (delta_x < 0) ? -player->horizontal_turn_speed : player->horizontal_turn_speed;
             }
 
             if(abs((int)delta_y) > 0)
             {
-                if(delta_y < 0)
-                {
-                    player->vertical_offset += player->vertical_turn_speed;
-                }
-
-                else
-                {
-                    player->vertical_offset -= player->vertical_turn_speed;
-                }
+                player->vertical_offset += (delta_y < 0) ? player->vertical_turn_speed : -player->vertical_turn_speed;
             }
             break;
     }
@@ -291,33 +276,30 @@ void movement_controls(Grid map[MAP_SIZE], Player *player)
     }
 }
 
-typedef struct
+int get_map_position(Vector2 position)
 {
-    Vector2 position;
-    Vector2 offset;
-} RAY;
+    int mx = (int) position.x >> (int)log2(CELL_SIZE);
+    int my = (int) position.y >> (int)log2(CELL_SIZE);
+    
+    return (my * ROW) + mx;
+}
 
 Vector2 find_collision_point(Grid map[MAP_SIZE], RAY ray)
 {
     int line_depth = 0;
 
-    // used to find cells
-    int mx, my, mp;
-
     while(line_depth < ROW)
     {
         // grid representation of potential wall
-        mx = (int) ray.position.x >> (int)log2(CELL_SIZE);
-        my = (int) ray.position.y >> (int)log2(CELL_SIZE);
-        mp = (my * ROW) + mx;
+        int mp = get_map_position(ray.position);
 
-        // if you hit a wall
+        // wall collision
         if(((mp > 0) && (mp < MAP_SIZE)) && (map[mp].type == WALL))
         {
             line_depth = ROW;
         }
         
-        // move to the next horz gridline
+        // continue to project until collision
         else
         {
             ray.position = Vector2Add(ray.position, ray.offset);
@@ -415,19 +397,18 @@ void calculate_ray_distances(Grid map[MAP_SIZE], Player *player, Vector2 rays[NR
 
         // choose the shortest collision path to draw
         float final_distance;
-        Vector2 collision_point;
         
         if(horizontal_distance < vertical_distance)
         {
             final_distance = horizontal_distance;
-            collision_point = horizontal_collision_point;
+            rays[r] = horizontal_collision_point;
             collisions[r] = HORIZONTAL;
         }
 
         else
         {
             final_distance = vertical_distance;
-            collision_point = vertical_collision_point;
+            rays[r] = vertical_collision_point;
             collisions[r] = VERTICAL;
         }
         
@@ -435,7 +416,6 @@ void calculate_ray_distances(Grid map[MAP_SIZE], Player *player, Vector2 rays[NR
         float angle_difference = angle_correction(player->angle - ray_angle);
         final_distance *= cos(angle_difference * DEG2RAD);
         
-        rays[r] = collision_point;
         distances[r] = final_distance;
     }
 }
@@ -483,33 +463,30 @@ void init()
 
 void settings(float *movement_speed, float *horizontal_turn_speed, float *vertical_turn_speed, float *field_of_view)
 {
-    char text[10];
-
     DrawText("SPEED", 10, 10, 10, RAYWHITE);
-    sprintf(text, "%.2f", *movement_speed);
-    GuiSliderBar((Rectangle){MeasureText("SPEED", 10) + 15,10,100,10}, "", text, movement_speed, 1.00, 500.00);
+    GuiSliderBar((Rectangle){MeasureText("SPEED", 10) + 15,10,100,10}, "", "", movement_speed, 1.00, 500.00);
 
     DrawText("HORIZONTAL TURN SPEED", 10, 25, 10, RAYWHITE);
-    sprintf(text, "%.2f", *horizontal_turn_speed);
-    GuiSliderBar((Rectangle){MeasureText("HORIZONTAL TURN SPEED", 10) + 15,25,100,10}, "", text, horizontal_turn_speed, 0.00, 3.00);
+    GuiSliderBar((Rectangle){MeasureText("HORIZONTAL TURN SPEED", 10) + 15,25,100,10}, "", "", horizontal_turn_speed, 0.00, 3.00);
 
     DrawText("VERTICAL TURN SPEED", 10, 40, 10, RAYWHITE);
-    sprintf(text, "%.2f", *vertical_turn_speed);
-    GuiSliderBar((Rectangle){MeasureText("HORIZONTAL TURN SPEED", 10) + 15,40,100,10}, "", text, vertical_turn_speed, 0.00, 10.00);
+    GuiSliderBar((Rectangle){MeasureText("HORIZONTAL TURN SPEED", 10) + 15,40,100,10}, "", "", vertical_turn_speed, 0.00, 20.00);
 
     DrawText("FOV", 10, 55, 10, RAYWHITE);
-    sprintf(text, "%.2f", *field_of_view);
-    GuiSliderBar((Rectangle){MeasureText("FOV", 10) + 15, 55, 100, 10}, "", text, field_of_view, 0.00, 60.00);
+    GuiSliderBar((Rectangle){MeasureText("FOV", 10) + 15, 55, 100, 10}, "", "", field_of_view, 0.00, 60.00);
     *field_of_view = (int)*field_of_view;
 }
 
 int main() 
 {
     init();
+    
     float field_of_view = 30;
+    Dimension dimension = _2D;
+    
     Grid map[MAP_SIZE]; init_map(map);
     Player player = init_player();
-    Dimension dimension = _2D;
+
     Vector2 rays[NRAYS];
     Collision collisions[NRAYS];
     float distances[NRAYS];
@@ -523,9 +500,9 @@ int main()
         }
         toggle_cursor();
         change_dimension(&dimension);
-        movement_controls(map, &player);
         if(IsCursorHidden())
         {
+            movement_controls(map, &player);
             change_direction(&player, dimension);
         }
         BeginDrawing();
@@ -533,8 +510,8 @@ int main()
             switch(dimension)
             {
                 case _2D: 
-                    edit_grid(map, player.position, player.radius);
-                    draw_grid(map);
+                    edit_map(map, player.position, player.radius);
+                    draw_map(map);
                     draw_rays(rays, player.position, field_of_view);
                     draw_player(&player);
                     break;
@@ -551,4 +528,3 @@ int main()
     CloseWindow();
     return 0;
 }
-// change lighting
